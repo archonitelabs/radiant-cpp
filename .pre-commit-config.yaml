@@ -1,0 +1,31 @@
+---
+fail_fast: false
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: c4a0b883114b00d8d76b479c820ce7950211c99b  # v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: no-commit-to-branch
+        args: [--branch, main]
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: 9a9bbc00895bbdb7670231c2565d4f1309c42905  # v1.3.5
+    hooks:
+      - id: clang-format
+  - repo: https://github.com/psf/black
+    rev: ec91a2be3c44d88e1a3960a4937ad6ed3b63464e  # 23.12.1
+    hooks:
+      - id: black
+  - repo: https://github.com/adrienverge/yamllint
+    rev: 81e9f98ffd059efe8aa9c1b1a42e5cce61b640c6  # v1.35.1
+    hooks:
+      - id: yamllint
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        require_serial: true

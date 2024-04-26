@@ -1,0 +1,29 @@
+---
+name: Lint
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  Lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: ./tools/rad/setup.py
+      - name: Install Rad Tool
+        run: pip install -e ./tools/rad
+      - name: Run Linter
+        run: rad lint --all-files --skip no-commit-to-branch

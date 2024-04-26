@@ -1,0 +1,19 @@
+*.orig
+/compile_commands.json
+
+# vscode
+/.vscode/c_cpp_properties.json
+/.vscode/launch.json
+
+# python
+__pycache__/
+.env
+.venv
+env/
+venv/
+env.bak/
+venv.bak/
+
+# bazel
+/bazel-*
+/external

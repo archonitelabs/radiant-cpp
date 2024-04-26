@@ -1,0 +1,43 @@
+---
+name: Code Coverage
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  CodeCoverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.8.2
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: ./tools/rad/setup.py
+      - name: Install Rad Tool
+        run: pip install -e ./tools/rad
+      - name: Generate Coverage
+        run: rad coverage --output-xml ./coverage.xml -vv
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: archonitelabs/radiant-cpp
+          fail_ci_if_error: true
+          verbose: true
+          files: ./coverage.xml

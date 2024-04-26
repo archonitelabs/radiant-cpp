@@ -1,0 +1,16 @@
+---
+name: Feature Request
+description: Suggest features, modifications, ideas, or suggestions.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    attributes:
+      label: Description of the feature, modification, idea, or suggestion.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed implementation details (optional)
+      placeholder: Suggest how to implement the feature.
+    validations:
+      required: false

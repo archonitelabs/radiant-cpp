@@ -1,0 +1,42 @@
+load("//:default_copts.bzl", "RAD_CPP14", "RAD_CPP17", "RAD_CPP20", "RAD_DEFAULT_COPTS")
+
+filegroup(
+    name = "test_srcs",
+    srcs = glob([
+        "*.cpp",
+        "*.h",
+    ]),
+)
+
+TEST_SIZE = "small"
+
+TEST_SRCS = [":test_srcs"]
+
+TEST_DEPS = [
+    "@//:radiant",
+    "@googletest//:gtest_main",
+]
+
+cc_test(
+    name = "all_test14",
+    size = TEST_SIZE,
+    srcs = TEST_SRCS,
+    copts = RAD_CPP14 + RAD_DEFAULT_COPTS,
+    deps = TEST_DEPS,
+)
+
+cc_test(
+    name = "all_test17",
+    size = TEST_SIZE,
+    srcs = TEST_SRCS,
+    copts = RAD_CPP17 + RAD_DEFAULT_COPTS,
+    deps = TEST_DEPS,
+)
+
+cc_test(
+    name = "all_test20",
+    size = TEST_SIZE,
+    srcs = TEST_SRCS,
+    copts = RAD_CPP20 + RAD_DEFAULT_COPTS,
+    deps = TEST_DEPS,
+)

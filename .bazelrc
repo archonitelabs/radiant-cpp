@@ -1,0 +1,9 @@
+# Enables c++ toolchain selection via the new "platforms" mechanism
+# This flag will likely not be needed anymore when bazel 7.0.0 releases
+build --incompatible_enable_cc_toolchain_resolution
+
+# For access to cc_shared_library (experimental for years. default enabled 2023 Q1)
+build --experimental_cc_shared_library
+
+# Remove error output limit
+build --experimental_ui_max_stdouterr_bytes=-1

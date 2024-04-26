@@ -1,0 +1,29 @@
+# Copyright 2023 The Radiant Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# https://bazel.build/external/overview#bzlmod
+
+module(name = "radiant")
+
+bazel_dep(name = "googletest", version = "1.14.0", dev_dependency = True)
+bazel_dep(name = "google_benchmark", version = "1.8.3", dev_dependency = True)
+
+# Hedron's Compile Commands Extractor for Bazel
+# https://github.com/hedronvision/bazel-compile-commands-extractor
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    commit = "a14ad3a64e7bf398ab48105aaa0348e032ac87f8",
+)

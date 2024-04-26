@@ -1,0 +1,12 @@
+---
+blank_issues_enabled: true
+contact_links:
+  - name: General Questions
+    url: https://github.com/archonitelabs/radiant-cpp/discussions/new
+    about: Have a question? Start a new discussion.
+  - name: Review Open Issues
+    url: https://github.com/archonitelabs/radiant-cpp/issues
+    about: Check existing enhancments or bug reports.
+  - name: Create a Blank Issue
+    url: https://github.com/archonitelabs/radiant-cpp/issues/new
+    about: Create a blank issue for anything else.

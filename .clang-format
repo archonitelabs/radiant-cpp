@@ -1,0 +1,65 @@
+---
+BasedOnStyle: Microsoft
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 80
+ReflowComments: true
+AccessModifierOffset: -4
+SortIncludes: Never
+UseCRLF: false
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterCaseLabel: true
+    AfterClass: true
+    AfterEnum: true
+    AfterFunction: true
+    AfterNamespace: true
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: true
+    BeforeCatch: true
+    BeforeElse: true
+    BeforeLambdaBody: true
+    BeforeWhile: true
+    IndentBraces: false
+    SplitEmptyFunction: true
+    SplitEmptyRecord: true
+    SplitEmptyNamespace: true
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakInheritanceList: AfterComma
+SeparateDefinitionBlocks: Always
+AlwaysBreakTemplateDeclarations: Yes
+
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Right
+AlignConsecutiveBitFields:
+    Enabled: true
+    AcrossEmptyLines: false
+    AcrossComments: true
+AlignConsecutiveMacros:
+    Enabled: true
+    AcrossEmptyLines: false
+    AcrossComments: true
+AlignEscapedNewlines: Right
+AlignOperands: Align
+IndentCaseBlocks: false
+IndentCaseLabels: true
+IndentExternBlock: false
+IndentGotoLabels: false
+Cpp11BracedListStyle: false
+SpaceBeforeCpp11BracedList: false
+EmptyLineAfterAccessModifier: Always
+LambdaBodyIndentation: Signature
+NamespaceIndentation: None
+PackConstructorInitializers: Never
+SortUsingDeclarations: false
+QualifierAlignment: Custom
+QualifierOrder: ['static', 'constexpr', 'inline', 'type']
