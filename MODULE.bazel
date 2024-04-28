@@ -27,3 +27,11 @@ git_override(
     remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
     commit = "a14ad3a64e7bf398ab48105aaa0348e032ac87f8",
 )
+
+# Windows - allows building with the EWDK, must set EWDKDIR environment variable
+bazel_dep(name = "ewdk_cc_toolchain", dev_dependency = True)
+git_override(
+    module_name = "ewdk_cc_toolchain",
+    remote = "https://github.com/0xf005ba11/bazel_ewdk_cc.git",
+    commit = "9b9b721f9bb73794bd376b8235a2decc6dea827c",
+)
