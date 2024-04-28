@@ -1,6 +1,6 @@
 {
   "lockFileVersion": 6,
-  "moduleFileHash": "275108e4d79dafea614d4d2ebe0a1f5bd2f49d8465e91bd5f5b9cb7cd268de5c",
+  "moduleFileHash": "a020535d78fd3f4c6ccdd51d294c1f53f629fc96f78e1a452f5291568a0f7613",
   "flags": {
     "cmdRegistries": [
       "https://bcr.bazel.build/"
@@ -28,6 +28,7 @@
         "googletest": "googletest@1.14.0",
         "google_benchmark": "google_benchmark@1.8.3",
         "hedron_compile_commands": "hedron_compile_commands@_",
+        "ewdk_cc_toolchain": "ewdk_cc_toolchain@_",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
       }
@@ -42,7 +43,7 @@
       "extensionUsages": [],
       "deps": {
         "com_google_absl": "abseil-cpp@20230125.1",
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "rules_cc": "rules_cc@0.0.9",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
@@ -73,7 +74,7 @@
       "extensionUsages": [],
       "deps": {
         "bazel_skylib": "bazel_skylib@1.4.1",
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "rules_foreign_cc": "rules_foreign_cc@0.9.0",
         "rules_cc": "rules_cc@0.0.9",
         "libpfm": "libpfm@4.11.0",
@@ -164,6 +165,41 @@
         }
       ],
       "deps": {
+        "bazel_tools": "bazel_tools@_",
+        "local_config_platform": "local_config_platform@_"
+      }
+    },
+    "ewdk_cc_toolchain@_": {
+      "name": "ewdk_cc_toolchain",
+      "version": "1.0.11",
+      "key": "ewdk_cc_toolchain@_",
+      "repoName": "ewdk_cc_toolchain",
+      "executionPlatformsToRegister": [],
+      "toolchainsToRegister": [
+        "@ewdk_toolchains//:all"
+      ],
+      "extensionUsages": [
+        {
+          "extensionBzlFile": "@ewdk_cc_toolchain//:ewdk_extension.bzl",
+          "extensionName": "toolchains",
+          "usingModule": "ewdk_cc_toolchain@_",
+          "location": {
+            "file": "@@ewdk_cc_toolchain~//:MODULE.bazel",
+            "line": 13,
+            "column": 27
+          },
+          "imports": {
+            "ewdk_toolchains": "ewdk_toolchains"
+          },
+          "devImports": [],
+          "tags": [],
+          "hasDevUseExtension": false,
+          "hasNonDevUseExtension": true
+        }
+      ],
+      "deps": {
+        "rules_cc": "rules_cc@0.0.9",
+        "platforms": "platforms@0.0.10",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
       }
@@ -313,7 +349,7 @@
         "rules_proto": "rules_proto@5.3.0-21.7",
         "rules_python": "rules_python@0.22.1",
         "buildozer": "buildozer@6.4.0.2",
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "com_google_protobuf": "protobuf@21.7",
         "zlib": "zlib@1.3",
         "build_bazel_apple_support": "apple_support@1.5.0",
@@ -329,7 +365,7 @@
       "toolchainsToRegister": [],
       "extensionUsages": [],
       "deps": {
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_tools": "bazel_tools@_"
       }
     },
@@ -343,7 +379,7 @@
       "extensionUsages": [],
       "deps": {
         "rules_cc": "rules_cc@0.0.9",
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_skylib": "bazel_skylib@1.4.1",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
@@ -364,14 +400,32 @@
         }
       }
     },
-    "platforms@0.0.7": {
+    "platforms@0.0.10": {
       "name": "platforms",
-      "version": "0.0.7",
-      "key": "platforms@0.0.7",
+      "version": "0.0.10",
+      "key": "platforms@0.0.10",
       "repoName": "platforms",
       "executionPlatformsToRegister": [],
       "toolchainsToRegister": [],
-      "extensionUsages": [],
+      "extensionUsages": [
+        {
+          "extensionBzlFile": "@platforms//host:extension.bzl",
+          "extensionName": "host_platform",
+          "usingModule": "platforms@0.0.10",
+          "location": {
+            "file": "https://bcr.bazel.build/modules/platforms/0.0.10/MODULE.bazel",
+            "line": 9,
+            "column": 30
+          },
+          "imports": {
+            "host_platform": "host_platform"
+          },
+          "devImports": [],
+          "tags": [],
+          "hasDevUseExtension": false,
+          "hasNonDevUseExtension": true
+        }
+      ],
       "deps": {
         "rules_license": "rules_license@0.0.7",
         "bazel_tools": "bazel_tools@_",
@@ -382,9 +436,9 @@
         "ruleClassName": "http_archive",
         "attributes": {
           "urls": [
-            "https://github.com/bazelbuild/platforms/releases/download/0.0.7/platforms-0.0.7.tar.gz"
+            "https://github.com/bazelbuild/platforms/releases/download/0.0.10/platforms-0.0.10.tar.gz"
           ],
-          "integrity": "sha256-OlYcmee9vpFzqmU/1Xn+hJ8djWc5V4CrR3Cx84FDHVE=",
+          "integrity": "sha256-IY7+juc20mo1cmY7N0olPAErcW2K8MB+hC6C8jigp+4=",
           "strip_prefix": "",
           "remote_patches": {},
           "remote_patch_strip": 0
@@ -420,7 +474,7 @@
         }
       ],
       "deps": {
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
       },
@@ -452,7 +506,7 @@
       ],
       "extensionUsages": [],
       "deps": {
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
       },
@@ -518,7 +572,7 @@
       ],
       "deps": {
         "bazel_skylib": "bazel_skylib@1.4.1",
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
       },
@@ -548,7 +602,7 @@
       "toolchainsToRegister": [],
       "extensionUsages": [],
       "deps": {
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "rules_foreign_cc": "rules_foreign_cc@0.9.0",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
@@ -648,7 +702,7 @@
         }
       ],
       "deps": {
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "rules_cc": "rules_cc@0.0.9",
         "bazel_skylib": "bazel_skylib@1.4.1",
         "rules_proto": "rules_proto@5.3.0-21.7",
@@ -810,7 +864,7 @@
         }
       ],
       "deps": {
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_skylib": "bazel_skylib@1.4.1",
         "rules_proto": "rules_proto@5.3.0-21.7",
         "com_google_protobuf": "protobuf@21.7",
@@ -992,7 +1046,7 @@
       "toolchainsToRegister": [],
       "extensionUsages": [],
       "deps": {
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "rules_cc": "rules_cc@0.0.9",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
@@ -1045,7 +1099,7 @@
       ],
       "deps": {
         "bazel_skylib": "bazel_skylib@1.4.1",
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
       },
@@ -1107,7 +1161,7 @@
         "rules_proto": "rules_proto@5.3.0-21.7",
         "com_google_protobuf": "protobuf@21.7",
         "com_google_absl": "abseil-cpp@20230125.1",
-        "platforms": "platforms@0.0.7",
+        "platforms": "platforms@0.0.10",
         "bazel_tools": "bazel_tools@_",
         "local_config_platform": "local_config_platform@_"
       },
@@ -1351,6 +1405,28 @@
           }
         },
         "recordedRepoMappingEntries": []
+      }
+    },
+    "@@ewdk_cc_toolchain~//:ewdk_extension.bzl%toolchains": {
+      "general": {
+        "bzlTransitiveDigest": "o8jWc/DKL6u/xdGVR7ZVOsdvrJWHczkHwS5vnpdr1b8=",
+        "recordedFileInputs": {},
+        "recordedDirentsInputs": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "ewdk_toolchains": {
+            "bzlFile": "@@ewdk_cc_toolchain~//:ewdk_cc_configure.bzl",
+            "ruleClassName": "ewdk_cc_autoconf_toolchains",
+            "attributes": {}
+          }
+        },
+        "recordedRepoMappingEntries": [
+          [
+            "ewdk_cc_toolchain~",
+            "bazel_tools",
+            "bazel_tools"
+          ]
+        ]
       }
     },
     "@@rules_foreign_cc~//foreign_cc:extensions.bzl%ext": {
