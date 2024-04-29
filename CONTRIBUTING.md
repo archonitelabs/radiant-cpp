@@ -40,23 +40,39 @@ Please read the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Run the tests: `rad test`.
 * Check out `rad --help` for more information. 😎 🎉
 
+### Code Coverage
+
+Run `rad coverage` to generate code coverage reports.
+
+How you view coverage is up to you. We recommend using the Visual Studio Code
+[Coverage Gutters extension][vscode.coverage-gutters], which is already
+recommended by the vscode project configuration. Coverage is gathered during
+pull requests and from the main branch. Coverage may be viewed on
+[codecov.io][codecov.radiant] or GitHub. We recommend installing the codecov
+[browser extension][codecov.extension] for viewing coverage on GitHub.
+
 ### Windows
 
-If you're working on ARM64 Windows, you should use the Bazel binary directly.
-There is a [bug in bazilisk](https://github.com/bazelbuild/bazelisk/issues/572)
-that ends up using the x64 version on Bazel on ARM64 systems. To work around
-this it is recommended to use the Bazel binary directly.
+If you're working on ARM64 Windows, there is a
+[bug in bazilisk](https://github.com/bazelbuild/bazelisk/issues/572)
+that ends up using the x64 version of Bazel on ARM64 systems. To work around
+this, it is recommended to use the ARM64 Bazel binary directly.
 
 Building with a normal Visual Studio install is possible, but
 [Bazel has bugs](https://github.com/bazelbuild/bazel/issues/22164) in their
-default toolchain resolution that may cause issues when cross compiling
-architectures. To work around this we recommend using the
+default toolchain resolution that may cause issues when cross-compiling
+architectures. To work around this, we recommend using the
 [EWDK toolchain](https://github.com/0xf005ba11/bazel_ewdk_cc/) instead. It is
 already configured as a bzlmod developer dependency for the project.
 
-1. Download and [Windows EWDK][microsoft.ewdk] and mount the ISO.
-2. Set `EWDKDIR` environment variable to the EWDK directory.
-3. You're all set! You might have to `rad clean --expunge`.
+* Download the [Windows EWDK][microsoft.ewdk] and mount the ISO.
+* Set the `EWDKDIR` environment variable to the EWDK directory.
+* You're all set! You might have to `rad clean --expunge`.
+
+To generate code coverage on Windows, Radiant uses OpenCppCoverage.
+
+* Download and install [OpenCppCoverage][github.opencppcoverage].
+* Running `rad coverage` will now generate coverage reports.
 
 ## Pull Requests
 
@@ -78,3 +94,7 @@ already configured as a bzlmod developer dependency for the project.
 [bazel.bazelisk]: https://bazel.build/install/bazelisk
 [python.install]: https://www.python.org/downloads/
 [microsoft.ewdk]: https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk#download-icon-for-ewdk-enterprise-wdk-ewdk
+[github.opencppcoverage]: https://github.com/OpenCppCoverage/OpenCppCoverage
+[codecov.radiant]: https://codecov.io/gh/archonitelabs/radiant-cpp
+[codecov.extension]: https://docs.codecov.com/docs/the-codecov-browser-extension
+[vscode.coverage-gutters]: https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters
