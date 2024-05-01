@@ -138,7 +138,7 @@ static_assert(!(RAD_WINDOWS && RAD_MACOS), "env invalid os");
 #define RAD_I386  1
 #define RAD_ARM64 0
 #define RAD_ARM   0
-#elif defined(_M_ARM64) || defined(__arm64__)
+#elif defined(_M_ARM64) || defined(__aarch64__)
 #define RAD_AMD64 0
 #define RAD_I386  0
 #define RAD_ARM64 1
