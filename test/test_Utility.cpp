@@ -15,7 +15,9 @@
 //
 // Disable nothrow assertions for unit testing
 //
-#define RAD_ENABLE_NOTHROW_ASSERTIONS 0
+#define RAD_ENABLE_NOTHROW_ASSERTIONS      0
+#define RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS 0
+#define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 0
 
 #include "gtest/gtest.h"
 

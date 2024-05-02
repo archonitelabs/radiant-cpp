@@ -44,6 +44,10 @@ public:
     static constexpr uint16_t InlineCount = TInlineCount;
     using AllocatorType = TAllocator;
 
+    RAD_S_ASSERT_NOTHROW_MOVE((IsNoThrowMoveCtor<T> && IsNoThrowMoveAssign<T> &&
+                               IsNoThrowMoveCtor<TAllocator> &&
+                               IsNoThrowMoveAssign<TAllocator>));
+
     //
     // TODO - rad::Vector does not yet support types that might throw exceptions
     // when manipulating it. It is the intention of the radiant authors for the
@@ -60,14 +64,13 @@ public:
     // itself should be in a valid state when this happens.
     //
     RAD_S_ASSERTMSG((IsNoThrowDtor<T> && IsNoThrowDefaultCtor<T> &&
-                     IsNoThrowCopyCtor<T> && IsNoThrowMoveCtor<T> &&
-                     IsNoThrowCopyAssign<T> && IsNoThrowMoveAssign<T>),
+                     IsNoThrowCopyCtor<T> && IsNoThrowCopyAssign<T>),
                     "rad::Vector does not yet support types that might throw.");
 
     ~Vector()
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T> && IsNoThrowDtor<TAllocator>,
-                        "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T> &&
+                                  IsNoThrowDtor<TAllocator>);
 
         Clear();
         Storage().Free(Allocator());

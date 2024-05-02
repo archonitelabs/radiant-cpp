@@ -48,11 +48,15 @@ public:
     LockExclusive(LockType& lock) noexcept(noexcept(lock.LockExclusive()))
         : m_lock(lock)
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(lock.LockExclusive()));
+
         m_lock.LockExclusive();
     }
 
     ~LockExclusive()
     {
+        RAD_S_ASSERT_NOTHROW_DTOR(noexcept(m_lock.Unlock()));
+
         m_lock.Unlock();
     }
 
@@ -76,11 +80,15 @@ public:
     LockShared(LockType& lock) noexcept(noexcept(lock.LockShared()))
         : m_lock(lock)
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(lock.LockShared()));
+
         m_lock.LockShared();
     }
 
     ~LockShared()
     {
+        RAD_S_ASSERT_NOTHROW_DTOR(noexcept(m_lock.Unlock()));
+
         m_lock.Unlock();
     }
 
@@ -116,6 +124,7 @@ public:
         : m_lock(lock),
           m_acquired(true)
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(lock.LockExclusive()));
         m_lock.LockExclusive();
     }
 
@@ -128,6 +137,8 @@ public:
 
     ~RelockableExclusive()
     {
+        RAD_S_ASSERT_NOTHROW_DTOR(noexcept(m_lock.Unlock()));
+
         if (m_acquired)
         {
             m_lock.Unlock();
@@ -138,6 +149,8 @@ public:
     /// @warning It is not allowed to call Unlock() if the lock is not acquired.
     void Unlock() noexcept(noexcept(DeclVal<LockType>().Unlock()))
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(DeclVal<LockType>().Unlock()));
+
         RAD_ASSERT(m_acquired);
         m_acquired = false;
         m_lock.Unlock();
@@ -149,6 +162,8 @@ public:
     /// acquired.
     void Lock() noexcept(noexcept(DeclVal<LockType>().LockExclusive()))
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(DeclVal<LockType>().LockExclusive()));
+
         RAD_ASSERT(!m_acquired);
         m_lock.LockExclusive();
         m_acquired = true;
@@ -179,6 +194,8 @@ public:
         : m_lock(lock),
           m_acquired(true)
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(lock.LockShared()));
+
         m_lock.LockShared();
     }
 
@@ -192,6 +209,8 @@ public:
     /// @brief Defer acquiring the lock to a manual call to Lock()
     ~RelockableShared()
     {
+        RAD_S_ASSERT_NOTHROW_DTOR(noexcept(m_lock.Unlock()));
+
         if (m_acquired)
         {
             m_lock.Unlock();
@@ -202,6 +221,8 @@ public:
     /// @warning It is not allowed to call Unlock() if the lock is not acquired.
     void Unlock() noexcept(noexcept(DeclVal<LockType>().Unlock()))
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(DeclVal<LockType>().Unlock()));
+
         RAD_ASSERT(m_acquired);
         m_acquired = false;
         m_lock.Unlock();
@@ -213,6 +234,8 @@ public:
     /// acquired.
     void Lock() noexcept(noexcept(DeclVal<LockType>().LockShared()))
     {
+        RAD_S_ASSERT_NOTHROW(noexcept(DeclVal<LockType>().Unlock()));
+
         RAD_ASSERT(!m_acquired);
         m_lock.LockShared();
         m_acquired = true;

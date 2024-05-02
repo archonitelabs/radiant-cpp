@@ -45,7 +45,7 @@ struct VectorManipulation
     template <typename U = T, EnIf<!IsTrivDtor<U>, int> = 0>
     inline void Dtor(T* item) noexcept
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
 
         item->~T();
     }
@@ -60,7 +60,7 @@ struct VectorManipulation
     template <typename U = T, EnIf<!IsTrivDtor<U>, int> = 0>
     inline void DtorRange(T* start, T* end) noexcept
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
 
         for (T* p = start; p != end; p++)
         {
@@ -121,7 +121,7 @@ struct VectorManipulation
                                  uint32_t count,
                                  const T& value) noexcept(IsNoThrowCopyCtor<T>)
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
 
         for (uint32_t i = 0; i < count; i++)
         {
@@ -142,7 +142,7 @@ struct VectorManipulation
     inline void CopyCtorDtorDestRange(T* dest, T* src, uint32_t count) noexcept(
         IsNoThrowCopyCtor<T>)
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
 
         for (uint32_t i = 0; i < count; i++)
         {
@@ -165,7 +165,7 @@ struct VectorManipulation
                               T* src,
                               uint32_t count) noexcept(IsNoThrowMoveCtor<T>)
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
 
         for (uint32_t i = 0; i < count; i++)
         {
@@ -197,7 +197,7 @@ struct VectorManipulation
     inline void MoveCtorDtorSrcRange(T* dest, T* src, uint32_t count) noexcept(
         IsNoThrowMoveCtor<T>)
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
 
         for (uint32_t i = 0; i < count; i++)
         {

@@ -30,8 +30,8 @@ public:
 
     ~ScopeExit()
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
-        RAD_S_ASSERTMSG(noexcept(m_fn()), "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
+        RAD_S_ASSERT_NOTHROW_DTOR(noexcept(m_fn()));
 
         if (m_call)
         {
@@ -76,8 +76,8 @@ public:
 
     ~ScopeGuard()
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T>, "Destructors should not throw!");
-        RAD_S_ASSERTMSG(noexcept(m_fn()), "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T>);
+        RAD_S_ASSERT_NOTHROW_DTOR(noexcept(m_fn()));
 
         m_fn();
     }

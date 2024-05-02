@@ -229,16 +229,54 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 #define RAD_S_ASSERT(x)       static_assert(x, #x)
 #define RAD_S_ASSERTMSG(x, m) static_assert(x, m)
 
+//
+// Enables broad assertions that objects do not throw exceptions.
+//
 #ifndef RAD_ENABLE_NOTHROW_ASSERTIONS
 #define RAD_ENABLE_NOTHROW_ASSERTIONS 1
 #endif
-
 #if RAD_ENABLE_NOTHROW_ASSERTIONS
 #define RAD_S_ASSERT_NOTHROW(x)       RAD_S_ASSERT(x)
 #define RAD_S_ASSERT_NOTHROWMSG(x, m) RAD_S_ASSERTMSG(x, m)
 #else
-#define RAD_S_ASSERT_NOTHROW(x)       ((void)0)
-#define RAD_S_ASSERT_NOTHROWMSG(x, m) ((void)0)
+#define RAD_S_ASSERT_NOTHROW(x)       RAD_S_ASSERT(true)
+#define RAD_S_ASSERT_NOTHROWMSG(x, m) RAD_S_ASSERT(true)
+#endif
+
+//
+// Enables assertions that destructors do not throw exceptions.
+//
+// Core Guideline: A destructor must not fail. If a destructor tries to exit
+// with an exception, it’s a bad design error and the program had better
+// terminate.
+//
+#ifndef RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS
+#define RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS 1
+#endif
+#if RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS
+#define RAD_S_ASSERT_NOTHROW_DTOR(x)                                           \
+    RAD_S_ASSERTMSG(x, "destructors should not throw")
+#define RAD_S_ASSERT_NOTHROW_DTOR_T(x)                                         \
+    RAD_S_ASSERTMSG(IsNoThrowDtor<x>, "destructors should not throw")
+#else
+#define RAD_S_ASSERT_NOTHROW_DTOR(x) RAD_S_ASSERT(true)
+#endif
+
+//
+// Enables assertions the move operations do not throw exceptions.
+//
+// Core Guideline: A throwing move violates most people’s reasonable
+// assumptions. A non-throwing move will be used more efficiently by
+// standard-library and language facilities.
+//
+#ifndef RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS
+#define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 1
+#endif
+#if RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS
+#define RAD_S_ASSERT_NOTHROW_MOVE(x)                                           \
+    RAD_S_ASSERTMSG(x, "move operations should not throw")
+#else
+#define RAD_S_ASSERT_NOTHROW_MOVE(x) RAD_S_ASSERT(true)
 #endif
 
 #define RAD_NOT_COPYABLE(x)                                                    \
