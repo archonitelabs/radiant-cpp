@@ -1,6 +1,6 @@
 {
   "lockFileVersion": 6,
-  "moduleFileHash": "f4948b1db3c8426ce61c4e3b27033e236b6dbb6d042cab34daf9aa917ae9f808",
+  "moduleFileHash": "03f9fa01086ec7d850ba7c8b54fac207fbd6a6a4ec53bd30f19077dcf4673d5a",
   "flags": {
     "cmdRegistries": [
       "https://bcr.bazel.build/"
@@ -1409,7 +1409,7 @@
     },
     "@@ewdk_cc_toolchain~//:ewdk_extension.bzl%toolchains": {
       "general": {
-        "bzlTransitiveDigest": "o8jWc/DKL6u/xdGVR7ZVOsdvrJWHczkHwS5vnpdr1b8=",
+        "bzlTransitiveDigest": "9JDci1UBSQRcNgV8CaGaG7lk1+ZmfO4FF//420jL10w=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},

@@ -162,8 +162,7 @@ struct ResultStorage<T, E, false>
 
     ~ResultStorage() noexcept
     {
-        RAD_S_ASSERTMSG(IsNoThrowDtor<T> && IsNoThrowDtor<E>,
-                        "Destructors should not throw!");
+        RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T> && IsNoThrowDtor<E>);
 
         Destruct();
     }
@@ -326,6 +325,9 @@ public:
     using ThisType = Result<T, E>;
     using typename StorageType::OkType;
     using typename StorageType::ErrType;
+
+    RAD_S_ASSERT_NOTHROW_MOVE((IsNoThrowMoveCtor<T> && IsNoThrowMoveAssign<T> &&
+                               IsNoThrowMoveCtor<E> && IsNoThrowMoveAssign<E>));
 
     constexpr Result() noexcept
         : StorageType(ResultEmptyTag)
