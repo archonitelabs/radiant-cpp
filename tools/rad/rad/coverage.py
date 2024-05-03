@@ -16,12 +16,13 @@
 
 """Utility functions to generate coverage data for the Radiant project."""
 
+import logging
 import os
 import pathlib
 import subprocess
-import logging
 from xml.etree import ElementTree
-from . import bazel
+
+from . import bazel, repo
 
 
 def _load_coverage_xml(path):
@@ -56,15 +57,19 @@ def _opencppcoverage(
     if not executables:
         return
 
-    output_xml = pathlib.Path(output_xml)
-    output = ["--export_type", "cobertura:" + str(output_xml)]
+    if output_xml is None:
+        coverage_path = repo.ROOT_PATH / "bazel-out" / "coverage.xml"
+    else:
+        coverage_path = pathlib.Path(output_xml)
+
+    output = ["--export_type", "cobertura:" + str(coverage_path)]
 
     srcs = []
-    if srcs_glob:
+    if srcs_glob is not None:
         srcs = ["--sources", srcs_glob]
 
     pdb_substitute = []
-    if pdb_prefix:
+    if pdb_prefix is not None and pdb_prefix_replace is not None:
         pdb_substitute = [
             "--substitute_pdb_source_path",
             str(pdb_prefix) + "?" + pdb_prefix_replace,
@@ -93,21 +98,21 @@ def _opencppcoverage(
             res = False
             break
 
-        xml = _load_coverage_xml(output_xml)
+        xml = _load_coverage_xml(coverage_path)
         try:
-            os.remove(output_xml)
+            os.remove(coverage_path)
         except FileNotFoundError:
             pass
-        if not combined:
-            combined = xml
-        else:
-            _merge_coverage_xml(combined, xml)
+        combined = _merge_coverage_xml(combined, xml) if combined else xml
+
     logging.log(
         logging.INFO if res else logging.ERROR,
         "coverage finished" if res else "coverage failed!",
     )
     if combined:
-        combined.write(output_xml, xml_declaration=True, method="xml", encoding="utf-8")
+        combined.write(
+            coverage_path, xml_declaration=True, method="xml", encoding="utf-8"
+        )
 
 
 def generate_coverage(
