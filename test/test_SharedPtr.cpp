@@ -268,7 +268,7 @@ TEST(TestSharedPtr, ReleaseDestruct)
 TEST(TestSharedPtr, ReleaseFree)
 {
     using PtrBlock =
-        rad::detail::_PtrBlock<int, radtest::StaticCountingAllocator<int>>;
+        rad::detail::_PtrBlock<int, radtest::StatefulCountingAllocator<int>>;
     PtrBlock::AllocatorType alloc;
     alloc.ResetCounts();
 
@@ -319,7 +319,7 @@ TEST(TestSharedPtr, AllocateSharedFail)
 
 TEST(TestSharedPtr, AllocateSharedThrows)
 {
-    radtest::StaticCountingAllocator<radtest::ThrowingObject> alloc;
+    radtest::StatefulCountingAllocator<radtest::ThrowingObject> alloc;
     alloc.ResetCounts();
 
     EXPECT_THROW(rad::AllocateShared<radtest::ThrowingObject>(alloc, 1),
@@ -487,7 +487,7 @@ TEST(TestSharedPtr, Swap)
 
 TEST(TestSharedPtr, SelfCopyAssign)
 {
-    radtest::StaticCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator<int> alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -501,7 +501,7 @@ TEST(TestSharedPtr, SelfCopyAssign)
 
 TEST(TestSharedPtr, CopyAssignNoReset)
 {
-    radtest::StaticCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator<int> alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -517,7 +517,7 @@ TEST(TestSharedPtr, CopyAssignNoReset)
 
 TEST(TestSharedPtr, CopyAssignReset)
 {
-    radtest::StaticCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator<int> alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -533,7 +533,7 @@ TEST(TestSharedPtr, CopyAssignReset)
 
 TEST(TestSharedPtr, CopyAssignNull)
 {
-    radtest::StaticCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator<int> alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -545,7 +545,7 @@ TEST(TestSharedPtr, CopyAssignNull)
 
 TEST(TestSharedPtr, SelfMoveAssign)
 {
-    radtest::StaticCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator<int> alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -559,7 +559,7 @@ TEST(TestSharedPtr, SelfMoveAssign)
 
 TEST(TestSharedPtr, MoveAssignNoReset)
 {
-    radtest::StaticCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator<int> alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -576,7 +576,7 @@ TEST(TestSharedPtr, MoveAssignNoReset)
 
 TEST(TestSharedPtr, MoveAssignReset)
 {
-    radtest::StaticCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator<int> alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -600,7 +600,7 @@ TEST(TestSharedPtr, PolymorphicCtor)
     EXPECT_EQ(static_cast<void*>(&d), static_cast<void*>(b));
     EXPECT_NE(static_cast<void*>(b), static_cast<void*>(e));
 
-    radtest::StaticCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
     alloc.ResetCounts();
 
     {
@@ -622,7 +622,7 @@ TEST(TestSharedPtr, PolymorphicCtor)
 
 TEST(TestSharedPtr, PolymorphicAssign)
 {
-    radtest::StaticCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
     alloc.ResetCounts();
 
     {
@@ -645,6 +645,22 @@ TEST(TestSharedPtr, PolymorphicAssign)
 
     EXPECT_EQ(alloc.AllocCount(), 1u);
     EXPECT_TRUE(alloc.VerifyCounts());
+}
+
+TEST(TestSharedPtr, StatefulAllocator)
+{
+    radtest::StatefulCountingAllocator<int> alloc;
+    alloc.ResetCounts();
+
+    auto ptr = rad::AllocateShared<int>(alloc, 2);
+    EXPECT_TRUE(ptr);
+    EXPECT_EQ(*ptr, 2);
+    EXPECT_EQ(alloc.AllocCount(), 1u);
+    EXPECT_EQ(alloc.FreeCount(), 0u);
+
+    ptr.Reset();
+    EXPECT_EQ(alloc.AllocCount(), 1u);
+    EXPECT_EQ(alloc.FreeCount(), 1u);
 }
 
 TEST(TestWeakPtr, ConstructEmpy)
@@ -822,7 +838,7 @@ TEST(TestWeakPtr, PolymorphicCtor)
     EXPECT_EQ(static_cast<void*>(&d), static_cast<void*>(b));
     EXPECT_NE(static_cast<void*>(b), static_cast<void*>(e));
 
-    radtest::StaticCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
     alloc.ResetCounts();
 
     {
@@ -860,7 +876,7 @@ TEST(TestWeakPtr, PolymorphicCtor)
 
 TEST(TestWeakPtr, PolymorphicAssign)
 {
-    radtest::StaticCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
     alloc.ResetCounts();
 
     {
