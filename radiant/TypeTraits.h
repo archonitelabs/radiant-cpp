@@ -245,7 +245,13 @@ template <typename T>
 RAD_INLINE_VAR constexpr bool HasVirtualDtor =
     std::has_virtual_destructor<T>::value;
 
+template <typename TBase, typename TDerived>
+RAD_INLINE_VAR constexpr bool IsBase = std::is_base_of<TBase, TDerived>::value;
+
 template <typename T>
 RAD_INLINE_VAR constexpr bool IsPoly = std::is_polymorphic<T>::value;
+
+template <typename T>
+RAD_INLINE_VAR constexpr bool IsAbstract = std::is_abstract<T>::value;
 
 } // namespace rad
