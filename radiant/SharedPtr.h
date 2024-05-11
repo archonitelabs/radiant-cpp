@@ -113,8 +113,8 @@ public:
 
     RAD_NOT_COPYABLE(_PtrBlockBase);
 
-    virtual void Destroy() const noexcept = 0;
-    virtual void Delete() const noexcept = 0;
+    virtual void OnRefZero() const noexcept = 0;
+    virtual void OnWeakZero() const noexcept = 0;
 
     const _PtrRefCount& RefCount() const noexcept
     {
@@ -140,7 +140,7 @@ public:
     {
         if (RefCount().Decrement())
         {
-            Destroy();
+            OnRefZero();
             ReleaseWeak();
         }
     }
@@ -149,7 +149,7 @@ public:
     {
         if (RefCount().DecrementWeak())
         {
-            Delete();
+            OnWeakZero();
         }
     }
 
@@ -188,18 +188,40 @@ public:
     {
     }
 
-    void Destroy() const noexcept override
+    void OnRefZero() const noexcept override
     {
-        m_pair.~PairType();
+        //
+        // The strong reference count has dropped to zero, destruct the managed
+        // object now. Once the weak reference count drops to zero the rest of
+        // the block will be destructed and freed.
+        //
+        Value().~ValueType();
     }
 
-    void Delete() const noexcept override
+    void OnWeakZero() const noexcept override
     {
+        //
+        // Take a copy of the allocator first, this will be used to do the free.
+        // Then destruct the remaining parts of the block.
+        //
+        // N.B. The _PtrBlockBase and PairType destructors are not invoked
+        // directly because the base contains only atomics which do not need to
+        // be destructed and the PairType is destructed in parts. Perhaps there
+        // is a more correct way to handle this, but this seems to account for
+        // destructing the necessary parts as it is.
+        //
+        AllocatorType alloc(Allocator());
         auto _this = const_cast<_PtrBlock*>(this);
-        _this->Allocator().Free(_this);
+        Allocator().~AllocatorType();
+        alloc.Free(_this);
     }
 
     AllocatorType& Allocator() noexcept
+    {
+        return m_pair.First();
+    }
+
+    const AllocatorType& Allocator() const noexcept
     {
         return m_pair.First();
     }

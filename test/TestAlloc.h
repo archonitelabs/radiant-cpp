@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include "gtest/gtest.h"
 
 namespace radtest
 {
+
+static constexpr uint32_t k_BadState = 0xdeadc0de;
 
 template <typename T>
 class Allocator
@@ -97,10 +97,13 @@ public:
     using SizeType = uint32_t;
     using DifferenceType = ptrdiff_t;
 
-    ~StatefulAllocator() = default;
+    ~StatefulAllocator()
+    {
+        m_state = k_BadState;
+    }
 
     StatefulAllocator()
-        : value(0)
+        : m_state(0)
     {
     }
 
@@ -108,7 +111,7 @@ public:
 
     template <typename U>
     StatefulAllocator(const StatefulAllocator<U>& other)
-        : value(other.value)
+        : m_state(other.m_state)
     {
     }
 
@@ -120,30 +123,40 @@ public:
 
     void Free(ValueType* ptr) noexcept
     {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
         free(ptr);
     }
 
     ValueType* Alloc(SizeType count) noexcept
     {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
         return (ValueType*)malloc(count * sizeof(T));
     }
 
     ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
     {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
         return (ValueType*)realloc(ptr, count * sizeof(T));
     }
 
     void FreeBytes(void* ptr) noexcept
     {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
         free(ptr);
     }
 
     void* AllocBytes(SizeType size) noexcept
     {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
         return malloc(size);
     }
 
-    uint32_t value;
+    uint32_t m_state;
 };
 
 template <typename T>
@@ -206,6 +219,37 @@ public:
     }
 };
 
+class CountingAllocatorImpl
+{
+public:
+
+    static void Free(void* ptr) noexcept;
+    static void* Alloc(uint32_t size) noexcept;
+    static void* Realloc(void* ptr, uint32_t size) noexcept;
+    static void FreeBytes(void* ptr) noexcept;
+    static void* AllocBytes(uint32_t size) noexcept;
+    static void* ReallocBytes(void* ptr, uint32_t size) noexcept;
+    static uint32_t FreeCount() noexcept;
+    static uint32_t AllocCount() noexcept;
+    static uint32_t ReallocCount() noexcept;
+    static uint32_t FreeBytesCount() noexcept;
+    static uint32_t AllocBytesCount() noexcept;
+    static uint32_t ReallocBytesCount() noexcept;
+    static void ResetCounts() noexcept;
+    static bool VerifyCounts() noexcept;
+    static bool VerifyCounts(uint32_t expectedAllocs,
+                             uint32_t expectedFrees) noexcept;
+
+private:
+
+    static uint32_t g_FreeCount;
+    static uint32_t g_AllocCount;
+    static uint32_t g_ReallocCount;
+    static uint32_t g_FreeBytesCount;
+    static uint32_t g_AllocBytesCount;
+    static uint32_t g_ReallocBytesCount;
+};
+
 template <typename T>
 class CountingAllocator
 {
@@ -219,6 +263,8 @@ public:
     using ValueType = T;
     using SizeType = uint32_t;
     using DifferenceType = ptrdiff_t;
+
+    using Impl = CountingAllocatorImpl;
 
     ~CountingAllocator() = default;
 
@@ -235,104 +281,6 @@ public:
     struct Rebind
     {
         using Other = CountingAllocator<U>;
-    };
-
-    void Free(ValueType* ptr) noexcept
-    {
-        ++freeCount;
-        free(ptr);
-    }
-
-    ValueType* Alloc(SizeType count) noexcept
-    {
-        ++allocCount;
-        return (ValueType*)malloc(count * sizeof(T));
-    }
-
-    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
-    {
-        ++reallocCount;
-        return (ValueType*)realloc(ptr, count * sizeof(T));
-    }
-
-    void FreeBytes(void* ptr) noexcept
-    {
-        ++freeBytesCount;
-        free(ptr);
-    }
-
-    void* AllocBytes(SizeType size) noexcept
-    {
-        ++allocBytesCount;
-        return malloc(size);
-    }
-
-    void* ReallocBytes(void* ptr, SizeType size) noexcept
-    {
-        ++reallocBytesCount;
-        return realloc(ptr, size);
-    }
-
-    uint32_t freeCount;
-    uint32_t allocCount;
-    uint32_t reallocCount;
-    uint32_t freeBytesCount;
-    uint32_t allocBytesCount;
-    uint32_t reallocBytesCount;
-};
-
-struct StaticCountingAllocatorImpl
-{
-    static void Free(void* ptr) noexcept;
-    static void* Alloc(uint32_t size) noexcept;
-    static void* Realloc(void* ptr, uint32_t size) noexcept;
-    static void FreeBytes(void* ptr) noexcept;
-    static void* AllocBytes(uint32_t size) noexcept;
-    static void* ReallocBytes(void* ptr, uint32_t size) noexcept;
-
-    static uint32_t freeCount;
-    static uint32_t allocCount;
-    static uint32_t reallocCount;
-    static uint32_t freeBytesCount;
-    static uint32_t allocBytesCount;
-    static uint32_t reallocBytesCount;
-};
-
-template <typename T>
-class StaticCountingAllocator
-{
-public:
-
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
-
-    using ThisType = StaticCountingAllocator<T>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
-
-    using Impl = StaticCountingAllocatorImpl;
-
-    ~StaticCountingAllocator() = default;
-
-    StaticCountingAllocator()
-        : state(0)
-    {
-    }
-
-    StaticCountingAllocator(const StaticCountingAllocator&) noexcept = default;
-
-    template <typename U>
-    StaticCountingAllocator(const StaticCountingAllocator<U>& other)
-        : state(other.state)
-    {
-    }
-
-    template <typename U>
-    struct Rebind
-    {
-        using Other = StaticCountingAllocator<U>;
     };
 
     void Free(ValueType* ptr) noexcept
@@ -367,57 +315,181 @@ public:
 
     uint32_t FreeCount() const noexcept
     {
-        return Impl::freeCount;
+        return Impl::FreeCount();
     }
 
     uint32_t AllocCount() const noexcept
     {
-        return Impl::allocCount;
+        return Impl::AllocCount();
     }
 
     uint32_t ReallocCount() const noexcept
     {
-        return Impl::reallocCount;
+        return Impl::ReallocCount();
     }
 
     uint32_t FreeBytesCount() const noexcept
     {
-        return Impl::freeBytesCount;
+        return Impl::FreeBytesCount();
     }
 
     uint32_t AllocBytesCount() const noexcept
     {
-        return Impl::allocBytesCount;
+        return Impl::AllocBytesCount();
     }
 
     uint32_t ReallocBytesCount() const noexcept
     {
-        return Impl::reallocBytesCount;
+        return Impl::ReallocBytesCount();
     }
 
     void ResetCounts() noexcept
     {
-        Impl::freeCount = 0;
-        Impl::allocCount = 0;
-        Impl::reallocCount = 0;
-        Impl::freeBytesCount = 0;
-        Impl::allocBytesCount = 0;
-        Impl::reallocBytesCount = 0;
+        Impl::ResetCounts();
     }
 
     bool VerifyCounts() const noexcept
     {
-        return Impl::allocCount == Impl::freeCount;
+        return Impl::VerifyCounts();
     }
 
     bool VerifyCounts(uint32_t expectedAllocs,
                       uint32_t expectedFrees) const noexcept
     {
-        return Impl::allocCount == expectedAllocs &&
-               Impl::freeCount == expectedFrees;
+        return Impl::VerifyCounts(expectedAllocs, expectedFrees);
+    }
+};
+
+template <typename T>
+class StatefulCountingAllocator
+{
+public:
+
+    static constexpr bool NeedsFree = true;
+    static constexpr bool HasRealloc = true;
+    static constexpr bool HasAllocBytes = true;
+
+    using ThisType = StatefulCountingAllocator<T>;
+    using ValueType = T;
+    using SizeType = uint32_t;
+    using DifferenceType = ptrdiff_t;
+
+    using Impl = CountingAllocatorImpl;
+
+    ~StatefulCountingAllocator()
+    {
+        m_state = k_BadState;
     }
 
-    uint32_t state; // make sure stateful
+    StatefulCountingAllocator()
+        : m_state(0)
+    {
+    }
+
+    StatefulCountingAllocator(const StatefulCountingAllocator&) noexcept =
+        default;
+
+    template <typename U>
+    StatefulCountingAllocator(const StatefulCountingAllocator<U>& other)
+        : m_state(other.m_state)
+    {
+    }
+
+    template <typename U>
+    struct Rebind
+    {
+        using Other = StatefulCountingAllocator<U>;
+    };
+
+    void Free(ValueType* ptr) noexcept
+    {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
+        Impl::Free(ptr);
+    }
+
+    ValueType* Alloc(SizeType count) noexcept
+    {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
+        return (ValueType*)Impl::Alloc((sizeof(T) * count));
+    }
+
+    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
+    {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
+        return (ValueType*)Impl::Realloc(ptr, (sizeof(T) * count));
+    }
+
+    void FreeBytes(void* ptr) noexcept
+    {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
+        Impl::Free(ptr);
+    }
+
+    void* AllocBytes(SizeType size) noexcept
+    {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
+        return (ValueType*)Impl::Alloc(size);
+    }
+
+    void* ReallocBytes(void* ptr, SizeType size) noexcept
+    {
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+
+        return Impl::Realloc(ptr, size);
+    }
+
+    uint32_t FreeCount() const noexcept
+    {
+        return Impl::FreeCount();
+    }
+
+    uint32_t AllocCount() const noexcept
+    {
+        return Impl::AllocCount();
+    }
+
+    uint32_t ReallocCount() const noexcept
+    {
+        return Impl::ReallocCount();
+    }
+
+    uint32_t FreeBytesCount() const noexcept
+    {
+        return Impl::FreeBytesCount();
+    }
+
+    uint32_t AllocBytesCount() const noexcept
+    {
+        return Impl::AllocBytesCount();
+    }
+
+    uint32_t ReallocBytesCount() const noexcept
+    {
+        return Impl::ReallocBytesCount();
+    }
+
+    void ResetCounts() noexcept
+    {
+        Impl::ResetCounts();
+    }
+
+    bool VerifyCounts() const noexcept
+    {
+        return Impl::VerifyCounts();
+    }
+
+    bool VerifyCounts(uint32_t expectedAllocs,
+                      uint32_t expectedFrees) const noexcept
+    {
+        return Impl::VerifyCounts(expectedAllocs, expectedFrees);
+    }
+
+    uint32_t m_state;
 };
 
 struct HeapAllocator
