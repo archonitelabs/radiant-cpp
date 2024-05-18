@@ -37,7 +37,7 @@ public:
 
     ~Allocator() = default;
 
-    constexpr Allocator() = default;
+    constexpr Allocator() noexcept = default;
 
     constexpr Allocator(const Allocator&) noexcept = default;
 
@@ -102,7 +102,7 @@ public:
         m_state = k_BadState;
     }
 
-    StatefulAllocator()
+    StatefulAllocator() noexcept
         : m_state(0)
     {
     }
@@ -110,7 +110,7 @@ public:
     StatefulAllocator(const StatefulAllocator&) noexcept = default;
 
     template <typename U>
-    StatefulAllocator(const StatefulAllocator<U>& other)
+    StatefulAllocator(const StatefulAllocator<U>& other) noexcept
         : m_state(other.m_state)
     {
     }
@@ -175,7 +175,7 @@ public:
 
     ~FailingAllocator() = default;
 
-    constexpr FailingAllocator() = default;
+    constexpr FailingAllocator() noexcept = default;
 
     constexpr FailingAllocator(const FailingAllocator&) noexcept = default;
 
@@ -268,7 +268,7 @@ public:
 
     ~CountingAllocator() = default;
 
-    constexpr CountingAllocator() = default;
+    constexpr CountingAllocator() noexcept = default;
 
     constexpr CountingAllocator(const CountingAllocator&) noexcept = default;
 
@@ -381,7 +381,7 @@ public:
         m_state = k_BadState;
     }
 
-    StatefulCountingAllocator()
+    StatefulCountingAllocator() noexcept
         : m_state(0)
     {
     }
@@ -390,7 +390,8 @@ public:
         default;
 
     template <typename U>
-    StatefulCountingAllocator(const StatefulCountingAllocator<U>& other)
+    StatefulCountingAllocator(
+        const StatefulCountingAllocator<U>& other) noexcept
         : m_state(other.m_state)
     {
     }
@@ -587,7 +588,7 @@ public:
 
     ~AllocWrapper() = default;
 
-    constexpr AllocWrapper(TBase& alloc)
+    constexpr AllocWrapper(TBase& alloc) noexcept
         : base(&alloc)
     {
     }
@@ -595,7 +596,7 @@ public:
     constexpr AllocWrapper(const AllocWrapper&) noexcept = default;
 
     template <typename U>
-    constexpr AllocWrapper(const AllocWrapper<U, TBase>& other)
+    constexpr AllocWrapper(const AllocWrapper<U, TBase>& other) noexcept
         : base(other.base)
     {
     }

@@ -76,7 +76,7 @@ public:
 
     ~Allocator() = default;
 
-    constexpr Allocator() = default;
+    constexpr Allocator() noexcept = default;
 
     constexpr Allocator(const Allocator&) noexcept = default;
 
