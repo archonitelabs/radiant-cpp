@@ -33,5 +33,5 @@ bazel_dep(name = "ewdk_cc_toolchain", dev_dependency = True)
 git_override(
     module_name = "ewdk_cc_toolchain",
     remote = "https://github.com/0xf005ba11/bazel_ewdk_cc.git",
-    commit = "9b9b721f9bb73794bd376b8235a2decc6dea827c",
+    commit = "e13b2fddcd46096b2ca92d13b1d5e1e48cccfc43",
 )
