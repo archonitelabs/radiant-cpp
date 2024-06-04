@@ -63,9 +63,8 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
       - name: Build and Run Unit Tests
-        # extra slash is an intentional hack, powershell converts a // to /
-        run: bazel test --test_output=all ///...
-        shell: bash
+        run: bazel test --test_output=all //...
+        shell: cmd
   Windows-ARM64:
     runs-on: archonite-windows-arm64
     steps:
@@ -78,6 +77,5 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
       - name: Build and Run Unit Tests
-        # extra slash is an intentional hack, powershell converts a // to /
-        run: bazel test --test_output=all ///...
-        shell: bash
+        run: bazel test --test_output=all //...
+        shell: cmd
