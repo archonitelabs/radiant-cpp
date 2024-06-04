@@ -25,6 +25,19 @@ jobs:
           repository-cache: true
       - name: Build and Run Unit Tests
         run: bazel test --test_output=all //...
+  Linux-ARM64:
+    runs-on: archonite-linux-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.8.2
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+      - name: Build and Run Unit Tests
+        run: bazel test --test_output=all //...
   Mac:
     runs-on: macos-latest
     steps:
@@ -40,6 +53,21 @@ jobs:
         run: bazel test --test_output=all //...
   Windows:
     runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.8.2
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+      - name: Build and Run Unit Tests
+        # extra slash is an intentional hack, powershell converts a // to /
+        run: bazel test --test_output=all ///...
+        shell: bash
+  Windows-ARM64:
+    runs-on: archonite-windows-arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
