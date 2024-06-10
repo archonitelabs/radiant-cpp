@@ -29,7 +29,7 @@ import rad.intellisense
 import rad.repo
 
 
-def init(args):  # pylint: disable=unused-argument
+def init(args) -> bool:  # pylint: disable=unused-argument
     """Initializes the Radiant development environment."""
     print("Initializing Radiant Development Environment...")
     logging.info("Setting up pre-commit hooks...")
@@ -48,16 +48,17 @@ def init(args):  # pylint: disable=unused-argument
     # initialize. Might be removed completely in the future.
     # logging.info("Setting up vscode c_cpp_properties.json...")
     # rad.intellisense.update_vscode_configurations()
+    return True
 
 
-def get_platforms_args(args):
+def get_platforms_args(args) -> list[str]:
     """Returns the bazel platforms for the given arguments."""
     if os.name == "nt":
         return [] if args.arch is None else [f"--platforms=//:windows_{args.arch}"]
     return []
 
 
-def build(args):
+def build(args) -> bool:
     """Builds the Radiant project."""
     if args.clean:
         rad.bazel.clean(False)
@@ -72,15 +73,15 @@ def build(args):
     platforms = get_platforms_args(args)
     clang = ["--repo_env=CC=clang"] if os.name != "nt" and args.clang else []
     nostd = ["--copt=-DRAD_NO_STD"] if args.no_std else []
-    rad.bazel.build("//...", clang + mode + platforms + nostd + verbosity)
+    return rad.bazel.build("//...", clang + mode + platforms + nostd + verbosity)
 
 
-def clean(args):
+def clean(args) -> bool:
     """Cleans the Radiant project."""
-    rad.bazel.clean(args.expunge)
+    return rad.bazel.clean(args.expunge)
 
 
-def get_label(args):
+def get_label(args) -> str:
     """Returns the label to use for the given arguments."""
     if args.label:
         return args.label
@@ -96,7 +97,7 @@ def get_label(args):
     return labels[n]
 
 
-def test(args):
+def test(args) -> bool:
     """Runs the unit tests for the Radiant project."""
     if args.clean:
         rad.bazel.clean(False)
@@ -111,10 +112,12 @@ def test(args):
     clang = ["--repo_env=CC=clang"] if os.name != "nt" and args.clang else []
     nostd = ["--copt=-DRAD_NO_STD"] if args.no_std else []
     nocache = ["--nocache_test_results"] if args.no_cache else []
-    rad.bazel.test(get_label(args), clang + platforms + nostd + nocache + verbosity)
+    return rad.bazel.test(
+        get_label(args), clang + platforms + nostd + nocache + verbosity
+    )
 
 
-def coverage(args):
+def coverage(args) -> bool:
     """Generates coverage data for the Radiant project."""
     if args.clean:
         rad.bazel.clean(False)
@@ -131,9 +134,10 @@ def coverage(args):
         )
     else:
         rad.coverage.generate_coverage(label, args.output_xml, filters="radiant")
+    return True
 
 
-def lint(args):
+def lint(args) -> bool:
     """Runs lint checks for the Radiant project."""
     env = os.environ.copy()
     if args.skip:
@@ -146,10 +150,11 @@ def lint(args):
     ]
     if args.all_files:
         command.append("--all-files")
-    subprocess.run(command, env=env, check=False)
+    proc = subprocess.run(command, env=env, check=False)
+    return proc.returncode == 0
 
 
-def setup_logging(verbosity):
+def setup_logging(verbosity) -> None:
     """Sets up the logging configuration."""
     levels = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
     level = levels[min(verbosity, len(levels) - 1)]
@@ -160,7 +165,7 @@ def setup_logging(verbosity):
     )
 
 
-def main():
+def main() -> int:
     """Main entry point for the Radiant Development Tool."""
     global_parser = argparse.ArgumentParser(add_help=False)
     global_parser.add_argument(
@@ -327,4 +332,4 @@ def main():
 
     setup_logging(args.verbose)
 
-    args.func(args)
+    return 0 if args.func(args) is True else 1
