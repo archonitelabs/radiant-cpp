@@ -282,8 +282,13 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 #if RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS
 #define RAD_S_ASSERT_NOTHROW_MOVE(x)                                           \
     RAD_S_ASSERTMSG(x, "move operations should not throw")
+
+#define RAD_S_ASSERT_NOTHROW_MOVE_T(x)                                         \
+    RAD_S_ASSERTMSG(IsNoThrowMoveCtor<T>&& IsNoThrowMoveAssign<T>,             \
+                    "move operations should not throw")
 #else
-#define RAD_S_ASSERT_NOTHROW_MOVE(x) RAD_S_ASSERT(true)
+#define RAD_S_ASSERT_NOTHROW_MOVE(x)   RAD_S_ASSERT(true)
+#define RAD_S_ASSERT_NOTHROW_MOVE_T(x) RAD_S_ASSERT(true)
 #endif
 
 #define RAD_NOT_COPYABLE(x)                                                    \

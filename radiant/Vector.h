@@ -43,29 +43,11 @@ public:
     using SizeType = uint32_t;
     static constexpr uint16_t InlineCount = TInlineCount;
     using AllocatorType = TAllocator;
+    template <typename OtherTAllocator, uint16_t OtherTInlineCount = 0>
+    using OtherType = Vector<T, OtherTAllocator, OtherTInlineCount>;
 
-    RAD_S_ASSERT_NOTHROW_MOVE((IsNoThrowMoveCtor<T> && IsNoThrowMoveAssign<T> &&
-                               IsNoThrowMoveCtor<TAllocator> &&
-                               IsNoThrowMoveAssign<TAllocator>));
-
-    //
-    // TODO - rad::Vector does not yet support types that might throw exceptions
-    // when manipulating it. It is the intention of the radiant authors for the
-    // library to be exception free. Radiant will never throw an exception
-    // itself, rather it will communicate errors by returning a Result. However,
-    // the radiant containers may be used with types that do not adhere to this
-    // philosophy. For rad::Vector to comply to this, it must cleanly handle
-    // cases where an exception interjects manipulation of it. If an exception
-    // happens rad::Vector should be in the state prior to the call to
-    // manipulate it. In other words, an exception occurring when manipulating
-    // rad::Vector should not leave it in a partially-manipulated state. This
-    // does not mean it should swallow the exception internally and return an
-    // error. The exception should propagate from rad::Vector but rad::Vector
-    // itself should be in a valid state when this happens.
-    //
-    RAD_S_ASSERTMSG((IsNoThrowDtor<T> && IsNoThrowDefaultCtor<T> &&
-                     IsNoThrowCopyCtor<T> && IsNoThrowCopyAssign<T>),
-                    "rad::Vector does not yet support types that might throw.");
+    RAD_S_ASSERT_NOTHROW_MOVE_T(T);
+    RAD_S_ASSERT_NOTHROW_MOVE_T(TAllocator);
 
     ~Vector()
     {
@@ -81,14 +63,14 @@ public:
 
     /// @brief Constructs empty container with copy-constructed allocator.
     /// @param alloc Allocator to copy.
-    Vector(const AllocatorType& alloc)
+    explicit Vector(const AllocatorType& alloc)
         : m_storage(alloc)
     {
     }
 
     /// @brief Constructs empty container with move-constructed allocator.
     /// @param alloc Allocator to move.
-    Vector(AllocatorType&& alloc)
+    explicit Vector(AllocatorType&& alloc)
         : m_storage(Forward<AllocatorType>(alloc))
     {
     }
@@ -129,7 +111,7 @@ public:
 
     /// @brief Retrieves a pointer to the first element in the contiguous set of
     /// elements. Pointer value is undefined if the container is empty.
-    /// @return Pointer to the first element in the contiguious set of elements.
+    /// @return Pointer to the first element in the contiguous set of elements.
     ValueType* Data() noexcept
     {
         return Storage().Data();
@@ -137,7 +119,7 @@ public:
 
     /// @brief Retrieves a pointer to the first element in the contiguous set of
     /// elements. Pointer value is undefined if the container is empty.
-    /// @return Pointer to the first element in the contiguious set of elements.
+    /// @return Pointer to the first element in the contiguous set of elements.
     const ValueType* Data() const noexcept
     {
         return Storage().Data();
@@ -258,7 +240,7 @@ public:
     /// less than count a number of default-constructed elements are appended.
     /// @param count Requested size of the container.
     /// @return Result reference to this container on success or an error.
-    Res<ThisType&> Resize(SizeType count) noexcept
+    Res<ThisType&> Resize(SizeType count) noexcept(IsNoThrowDefaultCtor<T>)
     {
         return Storage().Resize(Allocator(), count).OnOk(*this);
     }
@@ -270,7 +252,8 @@ public:
     /// @param count Requested size of the container.
     /// @param value Value to initialize new elements with.
     /// @return Result reference to this container on success or an error.
-    Res<ThisType&> Resize(SizeType count, const ValueType& value) noexcept
+    Res<ThisType&> Resize(SizeType count,
+                          const ValueType& value) noexcept(IsNoThrowCopyCtor<T>)
     {
         return Storage().Resize(Allocator(), count, value).OnOk(*this);
     }
@@ -279,7 +262,8 @@ public:
     /// @param count Number of elements to assign to the container.
     /// @param value Value to initialize elements with.
     /// @return Result reference to this container on success or an error.
-    Res<ThisType&> Assign(SizeType count, const ValueType& value) noexcept
+    Res<ThisType&> Assign(SizeType count,
+                          const ValueType& value) noexcept(IsNoThrowCopyCtor<T>)
     {
         return Storage().Assign(Allocator(), count, value).OnOk(*this);
     }
@@ -288,7 +272,8 @@ public:
     /// @brief Replaces the contents of the container.
     /// @param Init List of values to initialize elements with.
     /// @return Result reference to this container on success or an error.
-    Res<ThisType&> Assign(std::initializer_list<ValueType> init) noexcept
+    Res<ThisType&> Assign(std::initializer_list<ValueType> init) noexcept(
+        IsNoThrowCopyCtor<T>)
     {
         return Storage()
             .Assign(Allocator(),
@@ -300,7 +285,7 @@ public:
     /// @brief Replaces the contents of the container.
     /// @param span Span of values to initialize elements with.
     /// @return Result reference to this container on success or an error.
-    Res<ThisType&> Assign(Span<ValueType> span) noexcept
+    Res<ThisType&> Assign(Span<ValueType> span) noexcept(IsNoThrowCopyCtor<T>)
     {
         return Storage().Assign(Allocator(), span).OnOk(*this);
     }
@@ -311,7 +296,8 @@ public:
     /// @param ...args Arguments to forward to the constructor of the element.
     /// @return Result reference to this container on success or an error.
     template <typename... TArgs>
-    Res<ThisType&> EmplaceBack(TArgs&&... args) noexcept
+    Res<ThisType&> EmplaceBack(TArgs&&... args) noexcept(
+        IsNoThrowCtor<T, TArgs...>)
     {
         return Storage()
             .EmplaceBack(Allocator(), Forward<TArgs>(args)...)
@@ -321,7 +307,8 @@ public:
     /// @brief Appends a new element to the end of the container.
     /// @param value Value to be appended.
     /// @return Result reference to this container on success or an error.
-    Res<ThisType&> PushBack(const ValueType& value) noexcept
+    Res<ThisType&> PushBack(const ValueType& value) noexcept(
+        IsNoThrowCopyCtor<T>)
     {
         return EmplaceBack(value);
     }
@@ -375,9 +362,13 @@ public:
     /// @brief Copies the elements in this container to another.
     /// @param to Container to copy elements to.
     /// @return Result reference to this container on success or an error.
-    Res<ThisType&> Copy(ThisType& to) noexcept
+    Res<ThisType&> Copy(ThisType& to) noexcept(IsNoThrowCopyCtor<T>)
     {
-        return Storage().Copy(Allocator(), to.Storage()).OnOk(*this);
+        // Note: for now we can only copy types with the same allocator because
+        // the storage and allocator are private when the from and to vectors
+        // are not exactly the same type. This problem can be solved, but
+        // requires a bit of work.
+        return Storage().Copy(to.Allocator(), to.Storage()).OnOk(*this);
     }
 
     /// @brief Moves the elements in this container to another.
