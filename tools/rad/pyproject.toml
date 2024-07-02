@@ -10,6 +10,7 @@ dependencies = [
     "pylint",
     "black",
     "lcov_cobertura",
+    "setuptools",
     "yamllint",
 ]
 

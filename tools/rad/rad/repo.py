@@ -16,6 +16,7 @@
 
 """Utility functions to interact with the Radiant repository."""
 
+import os
 import pathlib
 import platform
 
@@ -37,3 +38,8 @@ def _norm_machine():
 ROOT_PATH = pathlib.Path(__file__).resolve().parents[3]
 NORM_ARCH = _norm_machine()
 NORM_ARCHES = ["x64", "x86", "arm64", "arm"]
+
+# Change the current working directory to the root of the repository.
+# This can be necessary for some tooling when the developer is working through
+# a symlink, a different directory, or mounted location (like DevDrive).
+os.chdir(ROOT_PATH)

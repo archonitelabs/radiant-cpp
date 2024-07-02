@@ -14,6 +14,8 @@
 
 #include "gtest/gtest.h"
 
+#define RAD_REQUIRE_EXPLICIT_ATOMIC_ORDERING 0
+
 #include "radiant/Atomic.h"
 #include "radiant/Utility.h"
 
