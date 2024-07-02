@@ -244,6 +244,13 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 #endif
 
 //
+// Enables requiring explicit atomic ordering.
+//
+#ifndef RAD_REQUIRE_EXPLICIT_ATOMIC_ORDERING
+#define RAD_REQUIRE_EXPLICIT_ATOMIC_ORDERING 1
+#endif
+
+//
 // Enables assertions that destructors do not throw exceptions.
 //
 // Core Guideline: A destructor must not fail. If a destructor tries to exit
