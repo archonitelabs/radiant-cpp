@@ -27,7 +27,7 @@ namespace rad
 /// @tparam TInlineCount Optionally specifies a number of elements for inline
 /// storage which may be used for small optimizations.
 template <typename T,
-          typename TAllocator _RAD_DEFAULT_ALLOCATOR_EQ(T),
+          typename TAllocator RAD_ALLOCATOR_EQ(T),
           uint16_t TInlineCount = 0>
 class Vector final
 {
@@ -493,7 +493,7 @@ constexpr uint16_t Vector<T, Allocator, TInlineCount>::InlineCount;
 /// @tparam TAllocator Allocator type to use.
 template <typename T,
           uint16_t TInlineCount,
-          typename TAllocator _RAD_DEFAULT_ALLOCATOR_EQ(T)>
+          typename TAllocator RAD_ALLOCATOR_EQ(T)>
 using InlineVector = Vector<T, TAllocator, TInlineCount>;
 
 template <typename T,

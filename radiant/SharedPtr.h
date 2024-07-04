@@ -28,11 +28,11 @@ namespace detail
 /// @brief Internal use only. Reference counting management for smart pointers.
 /// @tparam Atomic counter type
 template <typename TAtomic>
-class _TPtrRefCount final
+class TPtrRefCount final
 {
 public:
 
-    _TPtrRefCount() noexcept
+    TPtrRefCount() noexcept
         : m_strongCount(1),
           m_weakCount(1)
     {
@@ -99,24 +99,24 @@ private:
     mutable TAtomic m_weakCount;
 };
 
-using _PtrRefCount = _TPtrRefCount<Atomic<uint32_t>>;
+using PtrRefCount = TPtrRefCount<Atomic<uint32_t>>;
 
-class _PtrBlockBase
+class PtrBlockBase
 {
 public:
 
-    virtual ~_PtrBlockBase() noexcept
+    virtual ~PtrBlockBase() noexcept
     {
     }
 
-    _PtrBlockBase() noexcept = default;
+    PtrBlockBase() noexcept = default;
 
-    RAD_NOT_COPYABLE(_PtrBlockBase);
+    RAD_NOT_COPYABLE(PtrBlockBase);
 
     virtual void OnRefZero() const noexcept = 0;
     virtual void OnWeakZero() const noexcept = 0;
 
-    const _PtrRefCount& RefCount() const noexcept
+    const PtrRefCount& RefCount() const noexcept
     {
         return m_refcount;
     }
@@ -165,25 +165,25 @@ public:
 
 private:
 
-    _PtrRefCount m_refcount;
+    PtrRefCount m_refcount;
 };
 
 /// @brief Internal use only. SharedPtr control block
 /// @tparam T Value type
 /// @tparam TAlloc Allocator type
 template <typename T, typename TAlloc>
-class _PtrBlock final : public _PtrBlockBase
+class PtrBlock final : public PtrBlockBase
 {
 public:
 
-    using AllocatorType = typename TAlloc::template Rebind<_PtrBlock>::Other;
+    using AllocatorType = typename TAlloc::template Rebind<PtrBlock>::Other;
     using ValueType = T;
     using PairType = EmptyOptimizedPair<AllocatorType, ValueType>;
 
     template <typename... TArgs>
-    _PtrBlock(const AllocatorType& alloc, TArgs&&... args) noexcept(
+    PtrBlock(const AllocatorType& alloc, TArgs&&... args) noexcept(
         noexcept(PairType(alloc, Forward<TArgs>(args)...)))
-        : _PtrBlockBase(),
+        : PtrBlockBase(),
           m_pair(alloc, Forward<TArgs>(args)...)
     {
     }
@@ -204,16 +204,16 @@ public:
         // Take a copy of the allocator first, this will be used to do the free.
         // Then destruct the remaining parts of the block.
         //
-        // N.B. The _PtrBlockBase and PairType destructors are not invoked
+        // N.B. The PtrBlockBase and PairType destructors are not invoked
         // directly because the base contains only atomics which do not need to
         // be destructed and the PairType is destructed in parts. Perhaps there
         // is a more correct way to handle this, but this seems to account for
         // destructing the necessary parts as it is.
         //
         AllocatorType alloc(Allocator());
-        auto _this = const_cast<_PtrBlock*>(this);
+        auto self = const_cast<PtrBlock*>(this);
         Allocator().~AllocatorType();
-        alloc.Free(_this);
+        alloc.Free(self);
     }
 
     AllocatorType& Allocator() noexcept
@@ -241,7 +241,7 @@ private:
     mutable PairType m_pair;
 };
 
-struct _AllocateSharedImpl;
+struct AllocateSharedImpl;
 
 } // namespace detail
 
@@ -490,7 +490,7 @@ public:
 
 private:
 
-    SharedPtr(detail::_PtrBlockBase* block, T* ptr) noexcept
+    SharedPtr(detail::PtrBlockBase* block, T* ptr) noexcept
         : m_block(block),
           m_ptr(ptr)
     {
@@ -505,10 +505,10 @@ private:
     friend class AtomicSharedPtr<T>;
     friend class AtomicWeakPtr<T>;
 
-    detail::_PtrBlockBase* m_block;
+    detail::PtrBlockBase* m_block;
     T* m_ptr;
 
-    friend struct detail::_AllocateSharedImpl;
+    friend struct detail::AllocateSharedImpl;
 };
 
 template <typename T>
@@ -876,7 +876,7 @@ public:
 
 private:
 
-    WeakPtr(detail::_PtrBlockBase* block, T* ptr) noexcept
+    WeakPtr(detail::PtrBlockBase* block, T* ptr) noexcept
         : m_block(block),
           m_ptr(ptr)
     {
@@ -887,26 +887,26 @@ private:
 
     friend class AtomicWeakPtr<T>;
 
-    detail::_PtrBlockBase* m_block;
+    detail::PtrBlockBase* m_block;
     T* m_ptr;
 };
 
 namespace detail
 {
 /// @brief Internal use only
-struct _AllocateSharedImpl
+struct AllocateSharedImpl
 {
     /// @brief RAII-safety wrapper helper
     template <typename TAlloc>
-    struct _AllocateSharedHelper
+    struct AllocateSharedHelper
     {
-        constexpr _AllocateSharedHelper(TAlloc& ta) noexcept
+        constexpr AllocateSharedHelper(TAlloc& ta) noexcept
             : alloc(ta),
               block(nullptr)
         {
         }
 
-        ~_AllocateSharedHelper()
+        ~AllocateSharedHelper()
         {
             if (block)
             {
@@ -921,15 +921,14 @@ struct _AllocateSharedImpl
     template <typename T, typename TAlloc, typename... TArgs>
     static inline SharedPtr<T> AllocateShared(const TAlloc& alloc,
                                               TArgs&&... args) //
-        noexcept(
-            noexcept(DeclVal<typename _PtrBlock<T, TAlloc>::AllocatorType>()
-                         .Alloc(1)) &&
-            IsNoThrowCtor<T, TArgs...>)
+        noexcept(noexcept(DeclVal<typename PtrBlock<T, TAlloc>::AllocatorType>()
+                              .Alloc(1)) &&
+                 IsNoThrowCtor<T, TArgs...>)
     {
-        using BlockType = _PtrBlock<T, TAlloc>;
+        using BlockType = PtrBlock<T, TAlloc>;
         typename BlockType::AllocatorType blockAlloc(alloc);
 
-        _AllocateSharedHelper<decltype(blockAlloc)> excSafe(blockAlloc);
+        AllocateSharedHelper<decltype(blockAlloc)> excSafe(blockAlloc);
 
         excSafe.block = blockAlloc.Alloc(1);
         if RAD_LIKELY (excSafe.block != nullptr)
@@ -954,10 +953,10 @@ struct _AllocateSharedImpl
 /// @return A SharedPtr<T, TAlloc>
 template <typename T, typename TAlloc, typename... TArgs>
 SharedPtr<T> AllocateShared(const TAlloc& alloc, TArgs&&... args) //
-    noexcept(noexcept(detail::_AllocateSharedImpl::AllocateShared<T, TAlloc>(
+    noexcept(noexcept(detail::AllocateSharedImpl::AllocateShared<T, TAlloc>(
         alloc, Forward<TArgs>(args)...)))
 {
-    return detail::_AllocateSharedImpl::AllocateShared<T, TAlloc>(
+    return detail::AllocateSharedImpl::AllocateShared<T, TAlloc>(
         alloc,
         Forward<TArgs>(args)...);
 }
@@ -969,9 +968,7 @@ SharedPtr<T> AllocateShared(const TAlloc& alloc, TArgs&&... args) //
 /// @tparam TAlloc Type of the custom allocator
 /// @param args Arguments for T construction
 /// @return A SharedPtr<T, Allocator<T>>
-template <typename T,
-          typename TAlloc _RAD_DEFAULT_ALLOCATOR_EQ(T),
-          typename... TArgs>
+template <typename T, typename TAlloc RAD_ALLOCATOR_EQ(T), typename... TArgs>
 SharedPtr<T> MakeShared(TArgs&&... args) noexcept(
     noexcept(AllocateShared<T>(DeclVal<TAlloc&>(), Forward<TArgs>(args)...)))
 {
@@ -984,7 +981,7 @@ namespace detail
 {
 
 template <typename T>
-class _LockablePtr
+class LockablePtr
 {
 public:
 
@@ -997,20 +994,20 @@ public:
     static constexpr uintptr_t LockMask = (ExclusiveFlag | SharedMax);
     static constexpr uintptr_t PtrMask = ~LockMask;
 
-    using ThisType = _LockablePtr<T>;
+    using ThisType = LockablePtr<T>;
     using ValueType = T;
     using PointerType = T*;
 
-    ~_LockablePtr() = default;
+    ~LockablePtr() = default;
 
-    constexpr _LockablePtr() noexcept = default;
+    constexpr LockablePtr() noexcept = default;
 
-    constexpr _LockablePtr(PointerType value) noexcept
+    constexpr LockablePtr(PointerType value) noexcept
         : m_storage(reinterpret_cast<uintptr_t>(value))
     {
     }
 
-    RAD_NOT_COPYABLE(_LockablePtr);
+    RAD_NOT_COPYABLE(LockablePtr);
 
     RAD_NODISCARD PointerType UnsafeGet() const noexcept
     {
@@ -1097,8 +1094,8 @@ private:
 template <typename T>
 class AtomicSharedPtr final
 {
-    using BlockType = detail::_PtrBlockBase;
-    using LockType = detail::_LockablePtr<BlockType>;
+    using BlockType = detail::PtrBlockBase;
+    using LockType = detail::LockablePtr<BlockType>;
 
 public:
 
@@ -1205,8 +1202,8 @@ private:
 template <typename T>
 class AtomicWeakPtr final
 {
-    using BlockType = detail::_PtrBlockBase;
-    using LockType = detail::_LockablePtr<BlockType>;
+    using BlockType = detail::PtrBlockBase;
+    using LockType = detail::LockablePtr<BlockType>;
 
 public:
 

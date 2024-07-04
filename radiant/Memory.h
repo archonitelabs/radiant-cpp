@@ -22,11 +22,11 @@
 // enforce verbosity if they wish.
 //
 #ifdef RAD_DEFAULT_ALLOCATOR
-#define _RAD_DEFAULT_ALLOCATOR(x)    RAD_DEFAULT_ALLOCATOR<x>
-#define _RAD_DEFAULT_ALLOCATOR_EQ(x) = RAD_DEFAULT_ALLOCATOR<x>
+#define RAD_ALLOCATOR(x)    RAD_DEFAULT_ALLOCATOR<x>
+#define RAD_ALLOCATOR_EQ(x) = RAD_DEFAULT_ALLOCATOR<x>
 #else
-#define _RAD_DEFAULT_ALLOCATOR(x)
-#define _RAD_DEFAULT_ALLOCATOR_EQ(x)
+#define RAD_ALLOCATOR(x)
+#define RAD_ALLOCATOR_EQ(x)
 #endif
 
 namespace rad
