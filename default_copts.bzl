@@ -18,7 +18,7 @@ RAD_CPP20 = select({
     "//:clang": ["-std=c++20"],
 })
 
-_RAD_GCC_OPTS = [
+RAD_GCC_OPTS = [
     "-Wall",
     "-Wextra",
     "-Wcast-qual",
@@ -44,6 +44,6 @@ RAD_DEFAULT_COPTS = select({
         "/DNOMINMAX",
         "/Zc:__cplusplus",
     ],
-    "//:gcc": _RAD_GCC_OPTS,
-    "//:clang": _RAD_GCC_OPTS,
+    "//:gcc": RAD_GCC_OPTS,
+    "//:clang": RAD_GCC_OPTS,
 })

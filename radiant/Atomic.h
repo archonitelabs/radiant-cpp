@@ -30,11 +30,11 @@ RAD_INLINE_VAR constexpr detail::atomic::AcqRelTag MemOrderAcqRel{};
 RAD_INLINE_VAR constexpr detail::atomic::SeqCstTag MemOrderSeqCst{};
 
 #if RAD_REQUIRE_EXPLICIT_ATOMIC_ORDERING
-#define _RAD_ATOMIC_MEMORDER_T typename Order
-#define _RAD_ATOMIC_MEMORDER_P MemoryOrderTag<Order>
+#define RAD_ATOMIC_MEMORDER_T typename Order
+#define RAD_ATOMIC_MEMORDER_P MemoryOrderTag<Order>
 #else
-#define _RAD_ATOMIC_MEMORDER_T typename Order = detail::atomic::SeqCstTag
-#define _RAD_ATOMIC_MEMORDER_P MemoryOrderTag<Order> = MemoryOrderTag<Order>()
+#define RAD_ATOMIC_MEMORDER_T typename Order = detail::atomic::SeqCstTag
+#define RAD_ATOMIC_MEMORDER_P MemoryOrderTag<Order> = MemoryOrderTag<Order>()
 #endif
 
 namespace detail
@@ -62,20 +62,20 @@ public:
 
     RAD_NOT_COPYABLE(AtomicIntegral);
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    void Store(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    void Store(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         SelectIntrinsic<T>::Store(m_val, val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T Load(_RAD_ATOMIC_MEMORDER_P) const noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T Load(RAD_ATOMIC_MEMORDER_P) const noexcept
     {
         return SelectIntrinsic<T>::Load(m_val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T Exchange(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T Exchange(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::Exchange(m_val, val, Order());
     }
@@ -93,10 +93,10 @@ public:
                                                        Failure());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
+    template <RAD_ATOMIC_MEMORDER_T>
     bool CompareExchangeWeak(T& expected,
                              T desired,
-                             _RAD_ATOMIC_MEMORDER_P) noexcept
+                             RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return CompareExchangeWeak<Order, Order>(expected,
                                                  desired,
@@ -117,40 +117,40 @@ public:
                                                          Failure());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
+    template <RAD_ATOMIC_MEMORDER_T>
     bool CompareExchangeStrong(T& expected,
                                T desired,
-                               _RAD_ATOMIC_MEMORDER_P) noexcept
+                               RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return CompareExchangeStrong(expected, desired, Order(), Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T FetchAdd(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T FetchAdd(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::FetchAdd(m_val, val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T FetchSub(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T FetchSub(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::FetchSub(m_val, val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T FetchAnd(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T FetchAnd(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::FetchAnd(m_val, val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T FetchOr(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T FetchOr(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::FetchOr(m_val, val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T FetchXor(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T FetchXor(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::FetchXor(m_val, val, Order());
     }
@@ -238,20 +238,20 @@ public:
 
     RAD_NOT_COPYABLE(AtomicPointer);
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    void Store(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    void Store(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         SelectIntrinsic<T>::Store(m_val, val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T Load(_RAD_ATOMIC_MEMORDER_P) const noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T Load(RAD_ATOMIC_MEMORDER_P) const noexcept
     {
         return SelectIntrinsic<T>::Load(m_val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T Exchange(T val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T Exchange(T val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::Exchange(m_val, val, Order());
     }
@@ -269,10 +269,10 @@ public:
                                                        Failure());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
+    template <RAD_ATOMIC_MEMORDER_T>
     bool CompareExchangeWeak(T& expected,
                              T desired,
-                             _RAD_ATOMIC_MEMORDER_P) noexcept
+                             RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return CompareExchangeWeak<Order, Order>(expected,
                                                  desired,
@@ -293,22 +293,22 @@ public:
                                                          Failure());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
+    template <RAD_ATOMIC_MEMORDER_T>
     bool CompareExchangeStrong(T& expected,
                                T desired,
-                               _RAD_ATOMIC_MEMORDER_P) noexcept
+                               RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return CompareExchangeStrong(expected, desired, Order(), Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T FetchAdd(ptrdiff_t val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T FetchAdd(ptrdiff_t val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::FetchAdd(m_val, val, Order());
     }
 
-    template <_RAD_ATOMIC_MEMORDER_T>
-    T FetchSub(ptrdiff_t val, _RAD_ATOMIC_MEMORDER_P) noexcept
+    template <RAD_ATOMIC_MEMORDER_T>
+    T FetchSub(ptrdiff_t val, RAD_ATOMIC_MEMORDER_P) noexcept
     {
         return SelectIntrinsic<T>::FetchSub(m_val, val, Order());
     }

@@ -15,21 +15,21 @@
 #pragma once
 
 #if defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
-#define _RAD_MEM_BARRIER            __dmb(0xb); // _ARM_BARRIER_ISH / _ARM64_BARRIER_ISH
-#define _RAD_INTRIN_RELAXED(Intrin) RAD_CONCAT(Intrin, _nf)
-#define _RAD_INTRIN_ACQUIRE(Intrin) RAD_CONCAT(Intrin, _acq)
-#define _RAD_INTRIN_RELEASE(Intrin) RAD_CONCAT(Intrin, _rel)
+#define RAD_MEM_BARRIER            __dmb(0xb); // _ARM_BARRIER_ISH / _ARM64_BARRIER_ISH
+#define RAD_INTRIN_RELAXED(Intrin) RAD_CONCAT(Intrin, _nf)
+#define RAD_INTRIN_ACQUIRE(Intrin) RAD_CONCAT(Intrin, _acq)
+#define RAD_INTRIN_RELEASE(Intrin) RAD_CONCAT(Intrin, _rel)
 #elif defined(_M_IX86) || defined(_M_AMD64)
-#define _RAD_MEM_BARRIER                                                       \
+#define RAD_MEM_BARRIER                                                        \
     _Pragma("warning(push)") _Pragma("warning(disable : 4996)")                \
         _ReadWriteBarrier() _Pragma("warning(pop)")
-#define _RAD_INTRIN_RELAXED(Intrin) Intrin
-#define _RAD_INTRIN_ACQUIRE(Intrin) Intrin
-#define _RAD_INTRIN_RELEASE(Intrin) Intrin
+#define RAD_INTRIN_RELAXED(Intrin) Intrin
+#define RAD_INTRIN_ACQUIRE(Intrin) Intrin
+#define RAD_INTRIN_RELEASE(Intrin) Intrin
 #endif
 
 // clang-format off
-RAD_INLINE_VAR constexpr MemoryOrder _combinedOrders[6][6] = {
+RAD_INLINE_VAR constexpr MemoryOrder combinedOrders[6][6] = {
     {MemoryOrder::Relaxed, MemoryOrder::Consume, MemoryOrder::Acquire, MemoryOrder::Release, MemoryOrder::AcqRel, MemoryOrder::SeqCst},
     {MemoryOrder::Consume, MemoryOrder::Consume, MemoryOrder::Acquire, MemoryOrder::AcqRel,  MemoryOrder::AcqRel, MemoryOrder::SeqCst},
     {MemoryOrder::Acquire, MemoryOrder::Acquire, MemoryOrder::Acquire, MemoryOrder::AcqRel,  MemoryOrder::AcqRel, MemoryOrder::SeqCst},
@@ -42,7 +42,7 @@ RAD_INLINE_VAR constexpr MemoryOrder _combinedOrders[6][6] = {
 constexpr inline MemoryOrder CombineMemoryOrders(MemoryOrder success,
                                                  MemoryOrder fail) noexcept
 {
-    return _combinedOrders[static_cast<int>(success)][static_cast<int>(fail)];
+    return combinedOrders[static_cast<int>(success)][static_cast<int>(fail)];
 }
 
 template <typename T>
@@ -75,7 +75,7 @@ struct SelectIntrinsic<T, 1>
     {
         CheckLoadMemoryOrder<TOrder>();
         T ret = static_cast<T>(__iso_volatile_load8(AddrAs<Type>(storage)));
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         return ret;
     }
 
@@ -90,25 +90,25 @@ struct SelectIntrinsic<T, 1>
                              OrderTag<TOrder>) noexcept
     {
         CheckStoreMemoryOrder<TOrder>();
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         __iso_volatile_store8(AddrAs<Type>(storage), ValAs<Type>(val));
     }
 
     static inline T Exchange(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedExchange8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedExchange8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedExchange8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -180,7 +180,7 @@ struct SelectIntrinsic<T, 1>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELAXED(_InterlockedCompareExchange8)(
+                      RAD_INTRIN_RELAXED(_InterlockedCompareExchange8)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -193,7 +193,7 @@ struct SelectIntrinsic<T, 1>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange8)(
+                      RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange8)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -206,7 +206,7 @@ struct SelectIntrinsic<T, 1>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELEASE(_InterlockedCompareExchange8)(
+                      RAD_INTRIN_RELEASE(_InterlockedCompareExchange8)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -226,19 +226,19 @@ struct SelectIntrinsic<T, 1>
 
     static inline T FetchAdd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedExchangeAdd8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAdd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedExchangeAdd8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAdd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedExchangeAdd8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -259,19 +259,19 @@ struct SelectIntrinsic<T, 1>
 
     static inline T FetchAnd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedAnd8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedAnd8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedAnd8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -283,19 +283,19 @@ struct SelectIntrinsic<T, 1>
 
     static inline T FetchOr(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedOr8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedOr8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedOr8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -307,19 +307,19 @@ struct SelectIntrinsic<T, 1>
 
     static inline T FetchXor(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedXor8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedXor8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedXor8)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -346,7 +346,7 @@ struct SelectIntrinsic<T, 2>
     {
         CheckLoadMemoryOrder<TOrder>();
         T ret = static_cast<T>(__iso_volatile_load16(AddrAs<Type>(storage)));
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         return ret;
     }
 
@@ -361,25 +361,25 @@ struct SelectIntrinsic<T, 2>
                              OrderTag<TOrder>) noexcept
     {
         CheckStoreMemoryOrder<TOrder>();
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         __iso_volatile_store16(AddrAs<Type>(storage), ValAs<Type>(val));
     }
 
     static inline T Exchange(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedExchange16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedExchange16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedExchange16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -451,7 +451,7 @@ struct SelectIntrinsic<T, 2>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELAXED(_InterlockedCompareExchange16)(
+                      RAD_INTRIN_RELAXED(_InterlockedCompareExchange16)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -464,7 +464,7 @@ struct SelectIntrinsic<T, 2>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange16)(
+                      RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange16)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -477,7 +477,7 @@ struct SelectIntrinsic<T, 2>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELEASE(_InterlockedCompareExchange16)(
+                      RAD_INTRIN_RELEASE(_InterlockedCompareExchange16)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -497,23 +497,23 @@ struct SelectIntrinsic<T, 2>
 
     static inline T FetchAdd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(_InterlockedExchangeAdd16)(
-            AddrAs<Type>(storage),
-            ValAs<Type>(val)));
+        return static_cast<T>(
+            RAD_INTRIN_RELAXED(_InterlockedExchangeAdd16)(AddrAs<Type>(storage),
+                                                          ValAs<Type>(val)));
     }
 
     static inline T FetchAdd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(_InterlockedExchangeAdd16)(
-            AddrAs<Type>(storage),
-            ValAs<Type>(val)));
+        return static_cast<T>(
+            RAD_INTRIN_ACQUIRE(_InterlockedExchangeAdd16)(AddrAs<Type>(storage),
+                                                          ValAs<Type>(val)));
     }
 
     static inline T FetchAdd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(_InterlockedExchangeAdd16)(
-            AddrAs<Type>(storage),
-            ValAs<Type>(val)));
+        return static_cast<T>(
+            RAD_INTRIN_RELEASE(_InterlockedExchangeAdd16)(AddrAs<Type>(storage),
+                                                          ValAs<Type>(val)));
     }
 
     static inline T FetchAdd(volatile T& storage, T val, SeqCstTag) noexcept
@@ -533,19 +533,19 @@ struct SelectIntrinsic<T, 2>
 
     static inline T FetchAnd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedAnd16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedAnd16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedAnd16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -557,19 +557,19 @@ struct SelectIntrinsic<T, 2>
 
     static inline T FetchOr(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedOr16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedOr16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedOr16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -581,19 +581,19 @@ struct SelectIntrinsic<T, 2>
 
     static inline T FetchXor(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedXor16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedXor16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedXor16)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -620,7 +620,7 @@ struct SelectIntrinsic<T, 4>
     {
         CheckLoadMemoryOrder<TOrder>();
         T ret = ValAs<T>(__iso_volatile_load32(AddrAs<int>(storage)));
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         return ret;
     }
 
@@ -635,25 +635,25 @@ struct SelectIntrinsic<T, 4>
                              OrderTag<TOrder>) noexcept
     {
         CheckStoreMemoryOrder<TOrder>();
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         __iso_volatile_store32(AddrAs<int>(storage), ValAs<int>(val));
     }
 
     static inline T Exchange(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return ValAs<T>(_RAD_INTRIN_RELAXED(
+        return ValAs<T>(RAD_INTRIN_RELAXED(
             _InterlockedExchange)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return ValAs<T>(_RAD_INTRIN_ACQUIRE(
+        return ValAs<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedExchange)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return ValAs<T>(_RAD_INTRIN_RELEASE(
+        return ValAs<T>(RAD_INTRIN_RELEASE(
             _InterlockedExchange)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -725,7 +725,7 @@ struct SelectIntrinsic<T, 4>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELAXED(_InterlockedCompareExchange)(
+                      RAD_INTRIN_RELAXED(_InterlockedCompareExchange)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -738,7 +738,7 @@ struct SelectIntrinsic<T, 4>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange)(
+                      RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -751,7 +751,7 @@ struct SelectIntrinsic<T, 4>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELEASE(_InterlockedCompareExchange)(
+                      RAD_INTRIN_RELEASE(_InterlockedCompareExchange)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -772,7 +772,7 @@ struct SelectIntrinsic<T, 4>
     template <typename U = T, EnIf<IsIntegral<U>, int> = 0>
     static inline T FetchAdd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedExchangeAdd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -781,14 +781,14 @@ struct SelectIntrinsic<T, 4>
                              ptrdiff_t val,
                              RelaxedTag) noexcept
     {
-        return reinterpret_cast<T>(_RAD_INTRIN_RELAXED(
+        return reinterpret_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedExchangeAdd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     template <typename U = T, EnIf<IsIntegral<U>, int> = 0>
     static inline T FetchAdd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedExchangeAdd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -797,14 +797,14 @@ struct SelectIntrinsic<T, 4>
                              ptrdiff_t val,
                              AcquireTag) noexcept
     {
-        return reinterpret_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return reinterpret_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedExchangeAdd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     template <typename U = T, EnIf<IsIntegral<U>, int> = 0>
     static inline T FetchAdd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedExchangeAdd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -813,7 +813,7 @@ struct SelectIntrinsic<T, 4>
                              ptrdiff_t val,
                              ReleaseTag) noexcept
     {
-        return reinterpret_cast<T>(_RAD_INTRIN_RELEASE(
+        return reinterpret_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedExchangeAdd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -853,19 +853,19 @@ struct SelectIntrinsic<T, 4>
 
     static inline T FetchAnd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedAnd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedAnd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedAnd)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -877,19 +877,19 @@ struct SelectIntrinsic<T, 4>
 
     static inline T FetchOr(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedOr)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedOr)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedOr)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -901,19 +901,19 @@ struct SelectIntrinsic<T, 4>
 
     static inline T FetchXor(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             _InterlockedXor)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             _InterlockedXor)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             _InterlockedXor)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -957,7 +957,7 @@ struct SelectIntrinsic<T, 8>
         return InterlockedCompareExchange64((volatile LONG64*)&storage, 0, 0);
 #else
         T ret = ValAs<T>(__iso_volatile_load64(AddrAs<Type>(storage)));
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         return ret;
 #endif
     }
@@ -980,26 +980,26 @@ struct SelectIntrinsic<T, 8>
 #if RAD_I386 && RAD_KERNEL_MODE
         InterlockedExchange64(AddrAs<Type>(storage), val);
 #else
-        _RAD_MEM_BARRIER;
+        RAD_MEM_BARRIER;
         __iso_volatile_store64(AddrAs<Type>(storage), ValAs<Type>(val));
 #endif
     }
 
     static inline T Exchange(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return ValAs<T>(_RAD_INTRIN_RELAXED(
+        return ValAs<T>(RAD_INTRIN_RELAXED(
             InterlockedExchange64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return ValAs<T>(_RAD_INTRIN_ACQUIRE(
+        return ValAs<T>(RAD_INTRIN_ACQUIRE(
             InterlockedExchange64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T Exchange(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return ValAs<T>(_RAD_INTRIN_RELEASE(
+        return ValAs<T>(RAD_INTRIN_RELEASE(
             InterlockedExchange64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -1071,7 +1071,7 @@ struct SelectIntrinsic<T, 8>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELAXED(_InterlockedCompareExchange64)(
+                      RAD_INTRIN_RELAXED(_InterlockedCompareExchange64)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -1084,7 +1084,7 @@ struct SelectIntrinsic<T, 8>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange64)(
+                      RAD_INTRIN_ACQUIRE(_InterlockedCompareExchange64)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -1097,7 +1097,7 @@ struct SelectIntrinsic<T, 8>
     {
         return CasRet(expected,
                       ValAs<Type>(expected),
-                      _RAD_INTRIN_RELEASE(_InterlockedCompareExchange64)(
+                      RAD_INTRIN_RELEASE(_InterlockedCompareExchange64)(
                           AddrAs<Type>(storage),
                           ValAs<Type>(val),
                           ValAs<Type>(expected)));
@@ -1118,7 +1118,7 @@ struct SelectIntrinsic<T, 8>
     template <typename U = T, EnIf<IsIntegral<U>, int> = 0>
     static inline T FetchAdd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             InterlockedExchangeAdd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -1127,14 +1127,14 @@ struct SelectIntrinsic<T, 8>
                              ptrdiff_t val,
                              RelaxedTag) noexcept
     {
-        return reinterpret_cast<T>(_RAD_INTRIN_RELAXED(
+        return reinterpret_cast<T>(RAD_INTRIN_RELAXED(
             InterlockedExchangeAdd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     template <typename U = T, EnIf<IsIntegral<U>, int> = 0>
     static inline T FetchAdd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             InterlockedExchangeAdd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -1143,14 +1143,14 @@ struct SelectIntrinsic<T, 8>
                              ptrdiff_t val,
                              AcquireTag) noexcept
     {
-        return reinterpret_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return reinterpret_cast<T>(RAD_INTRIN_ACQUIRE(
             InterlockedExchangeAdd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     template <typename U = T, EnIf<IsIntegral<U>, int> = 0>
     static inline T FetchAdd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             InterlockedExchangeAdd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -1159,7 +1159,7 @@ struct SelectIntrinsic<T, 8>
                              ptrdiff_t val,
                              ReleaseTag) noexcept
     {
-        return reinterpret_cast<T>(_RAD_INTRIN_RELEASE(
+        return reinterpret_cast<T>(RAD_INTRIN_RELEASE(
             InterlockedExchangeAdd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -1199,19 +1199,19 @@ struct SelectIntrinsic<T, 8>
 
     static inline T FetchAnd(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             InterlockedAnd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             InterlockedAnd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchAnd(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             InterlockedAnd64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -1223,19 +1223,19 @@ struct SelectIntrinsic<T, 8>
 
     static inline T FetchOr(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             InterlockedOr64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             InterlockedOr64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchOr(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             InterlockedOr64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
@@ -1247,19 +1247,19 @@ struct SelectIntrinsic<T, 8>
 
     static inline T FetchXor(volatile T& storage, T val, RelaxedTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELAXED(
+        return static_cast<T>(RAD_INTRIN_RELAXED(
             InterlockedXor64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, AcquireTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_ACQUIRE(
+        return static_cast<T>(RAD_INTRIN_ACQUIRE(
             InterlockedXor64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 
     static inline T FetchXor(volatile T& storage, T val, ReleaseTag) noexcept
     {
-        return static_cast<T>(_RAD_INTRIN_RELEASE(
+        return static_cast<T>(RAD_INTRIN_RELEASE(
             InterlockedXor64)(AddrAs<Type>(storage), ValAs<Type>(val)));
     }
 

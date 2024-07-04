@@ -75,13 +75,13 @@ RAD_INLINE_VAR constexpr bool IsRRef = std::is_rvalue_reference<T>::value;
 namespace detail
 {
 template <typename T, typename U, bool = IsLRef<T> && !IsRRef<U>>
-struct _IsLRefBindable
+struct IsLRefBindable
 {
     static constexpr bool value = false;
 };
 
 template <typename T, typename U>
-struct _IsLRefBindable<T, U, true>
+struct IsLRefBindable<T, U, true>
 {
 private:
 
@@ -100,7 +100,7 @@ public:
 
 template <typename T, typename U>
 RAD_INLINE_VAR constexpr bool IsLRefBindable =
-    detail::_IsLRefBindable<T, U>::value;
+    detail::IsLRefBindable<T, U>::value;
 
 // std::decay not used here to avoid array-to-pointer/fn-to-pointer conversions
 // (based on a work-around by Luc Danton)
@@ -112,12 +112,12 @@ RAD_INLINE_VAR constexpr bool IsRelated = IsSame<
 namespace detail
 {
 template <typename... Types>
-struct _EnIfUnrelated : std::enable_if<true>
+struct EnIfUnrelated : std::enable_if<true>
 {
 };
 
 template <typename T, typename U, typename... Rest>
-struct _EnIfUnrelated<T, U, Rest...> : std::enable_if<!IsRelated<T, U>>
+struct EnIfUnrelated<T, U, Rest...> : std::enable_if<!IsRelated<T, U>>
 {
 };
 } // namespace detail
@@ -134,7 +134,7 @@ template <typename T>
 RAD_INLINE_VAR constexpr bool IsPointer = std::is_pointer<T>::value;
 
 template <typename... Types>
-using EnIfUnrelated = typename detail::_EnIfUnrelated<Types...>::type;
+using EnIfUnrelated = typename detail::EnIfUnrelated<Types...>::type;
 
 template <typename T, typename... TArgs>
 RAD_INLINE_VAR constexpr bool IsCtor =
@@ -232,13 +232,13 @@ RAD_INLINE_VAR constexpr bool IsNoThrowDtor =
 namespace detail
 {
 template <typename>
-RAD_INLINE_VAR constexpr bool _AlwaysFalse = false;
+RAD_INLINE_VAR constexpr bool AlwaysFalse = false;
 }
 
 template <typename T>
 typename std::add_rvalue_reference<T>::type DeclVal() noexcept
 {
-    RAD_S_ASSERTMSG(detail::_AlwaysFalse<T>, "Calling DeclVal is ill-formed");
+    RAD_S_ASSERTMSG(detail::AlwaysFalse<T>, "Calling DeclVal is ill-formed");
 }
 
 template <typename T>

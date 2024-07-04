@@ -122,7 +122,7 @@ ScopeGuard<Fn> MakeScopeGuard(Fn&& fn)
 
 } // namespace rad
 
-#define RAD_SCOPE_GUARD_NAME_STRINGIFY(suffix) __scopeGuard##suffix
+#define RAD_SCOPE_GUARD_NAME_STRINGIFY(suffix) scopeGuard##suffix
 #define RAD_SCOPE_GUARD_NAME(suffix)           RAD_SCOPE_GUARD_NAME_STRINGIFY(suffix)
 #define RAD_SCOPE_GUARD(fn)                                                    \
     const auto RAD_SCOPE_GUARD_NAME(__LINE__) = rad::MakeScopeGuard(fn)

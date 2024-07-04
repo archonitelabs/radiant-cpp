@@ -24,8 +24,8 @@ namespace sptestobjs
 {
 // clang-format off
 using NoThrowAllocSp = rad::SharedPtr<int>;
-using NoThrowObjBlock = rad::detail::_PtrBlock<int, radtest::Allocator<int>>;
-using ThrowObjBlock = rad::detail::_PtrBlock<radtest::ThrowingObject, radtest::Allocator<radtest::ThrowingObject>>;
+using NoThrowObjBlock = rad::detail::PtrBlock<int, radtest::Allocator<int>>;
+using ThrowObjBlock = rad::detail::PtrBlock<radtest::ThrowingObject, radtest::Allocator<radtest::ThrowingObject>>;
 using NoThrowPair = NoThrowObjBlock::PairType;
 using ThrowPair = ThrowObjBlock::PairType;
 
@@ -33,11 +33,11 @@ using NoThrowObjSp = NoThrowAllocSp;
 using ThrowObjSp = rad::SharedPtr<radtest::ThrowingObject>;
 // clang-format on
 
-// _PtrBlock::PairType construction noexcept
+// PtrBlock::PairType construction noexcept
 RAD_S_ASSERT(noexcept(NoThrowPair(rad::DeclVal<NoThrowPair::FirstType&>(), 1)));
 RAD_S_ASSERT(!noexcept(ThrowPair(rad::DeclVal<ThrowPair::FirstType&>())));
 
-// _PtrBlock construction noexcept (EopPair constructor passthrough)
+// PtrBlock construction noexcept (EopPair constructor passthrough)
 RAD_S_ASSERT(noexcept(NoThrowObjBlock(NoThrowObjBlock::AllocatorType())));
 RAD_S_ASSERT(!noexcept(ThrowObjBlock(ThrowObjBlock::AllocatorType())));
 
@@ -110,14 +110,14 @@ void FreeTestBlock(sptestobjs::NoThrowObjBlock* block)
 
 TEST(TestSharedPtr, RefCountCtor)
 {
-    rad::detail::_PtrRefCount rc;
+    rad::detail::PtrRefCount rc;
     EXPECT_EQ(rc.StrongCount(), 1u);
     EXPECT_EQ(rc.WeakCount(), 1u);
 }
 
 TEST(TestSharedPtr, RefCountIncrement)
 {
-    rad::detail::_PtrRefCount rc;
+    rad::detail::PtrRefCount rc;
     rc.Increment();
     EXPECT_EQ(rc.StrongCount(), 2u);
     EXPECT_EQ(rc.WeakCount(), 1u);
@@ -125,7 +125,7 @@ TEST(TestSharedPtr, RefCountIncrement)
 
 TEST(TestSharedPtr, RefCountIncrementWeak)
 {
-    rad::detail::_PtrRefCount rc;
+    rad::detail::PtrRefCount rc;
     rc.IncrementWeak();
     EXPECT_EQ(rc.StrongCount(), 1u);
     EXPECT_EQ(rc.WeakCount(), 2u);
@@ -133,7 +133,7 @@ TEST(TestSharedPtr, RefCountIncrementWeak)
 
 TEST(TestSharedPtr, RefCountDrecment)
 {
-    rad::detail::_PtrRefCount rc;
+    rad::detail::PtrRefCount rc;
     rc.Increment();
     EXPECT_FALSE(rc.Decrement());
     EXPECT_EQ(rc.StrongCount(), 1u);
@@ -146,7 +146,7 @@ TEST(TestSharedPtr, RefCountDrecment)
 
 TEST(TestSharedPtr, RefCountDecrementWeak)
 {
-    rad::detail::_PtrRefCount rc;
+    rad::detail::PtrRefCount rc;
     rc.IncrementWeak();
     EXPECT_FALSE(rc.DecrementWeak());
     EXPECT_EQ(rc.StrongCount(), 1u);
@@ -159,7 +159,7 @@ TEST(TestSharedPtr, RefCountDecrementWeak)
 
 TEST(TestSharedPtr, RefCountLockWeak)
 {
-    rad::detail::_PtrRefCount rc;
+    rad::detail::PtrRefCount rc;
     EXPECT_TRUE(rc.LockWeak());
     EXPECT_EQ(rc.StrongCount(), 2u);
     EXPECT_EQ(rc.WeakCount(), 1u);
@@ -191,7 +191,7 @@ public:
 
 TEST(TestSharedPtr, RefCountLockWeakFailExchange)
 {
-    rad::detail::_TPtrRefCount<MockAtomic> rc;
+    rad::detail::TPtrRefCount<MockAtomic> rc;
 
     EXPECT_FALSE(rc.LockWeak());
     EXPECT_FALSE(rc.LockWeak());
@@ -201,13 +201,13 @@ TEST(TestSharedPtr, RefCountLockWeakFailExchange)
 
 TEST(TestSharedPtr, PtrBlockCtor)
 {
-    using PtrBlock = rad::detail::_PtrBlock<int, radtest::Allocator<int>>;
+    using PtrBlock = rad::detail::PtrBlock<int, radtest::Allocator<int>>;
     PtrBlock::AllocatorType alloc;
     PtrBlock block(alloc, 2);
     EXPECT_EQ(block.Value(), 2);
 
     using StatefulPtrBlock =
-        rad::detail::_PtrBlock<int, radtest::StatefulAllocator<int>>;
+        rad::detail::PtrBlock<int, radtest::StatefulAllocator<int>>;
     StatefulPtrBlock::AllocatorType statefulAlloc;
     StatefulPtrBlock statefulBlock(statefulAlloc, 4);
     RAD_S_ASSERT(sizeof(statefulBlock) >
@@ -252,9 +252,8 @@ TEST(TestSharedPtr, LockWeak)
 
 TEST(TestSharedPtr, ReleaseDestruct)
 {
-    using PtrBlock =
-        rad::detail::_PtrBlock<DestructCounter,
-                               radtest::Allocator<DestructCounter>>;
+    using PtrBlock = rad::detail::PtrBlock<DestructCounter,
+                                           radtest::Allocator<DestructCounter>>;
     PtrBlock::AllocatorType alloc;
     PtrBlock block(alloc);
     EXPECT_EQ(DestructCounter::counter, 0);
@@ -268,7 +267,7 @@ TEST(TestSharedPtr, ReleaseDestruct)
 TEST(TestSharedPtr, ReleaseFree)
 {
     using PtrBlock =
-        rad::detail::_PtrBlock<int, radtest::StatefulCountingAllocator<int>>;
+        rad::detail::PtrBlock<int, radtest::StatefulCountingAllocator<int>>;
     PtrBlock::AllocatorType alloc;
     alloc.ResetCounts();
 
