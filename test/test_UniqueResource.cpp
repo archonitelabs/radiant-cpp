@@ -14,13 +14,13 @@
 
 #include "gtest/gtest.h"
 
-#include "radiant/Handle.h"
+#include "radiant/UniqueResource.h"
 
 static int g_IsValidCalls = 0;
 static int g_CloseCalls = 0;
 static int g_CloserCalls = 0;
 
-struct HandleCloser
+struct ResourceCloser
 {
     static void Close(int value) noexcept
     {
@@ -29,9 +29,9 @@ struct HandleCloser
     }
 };
 
-using TestHandle = rad::HandleDef<int, HandleCloser>;
+using TestResource = rad::UniqueResourceDef<int, ResourceCloser>;
 
-struct MockHandlePolicy
+struct MockResourcePolicy
 {
     using ValueType = int;
     static constexpr int InvalidValue = 0xdead;
@@ -49,21 +49,21 @@ struct MockHandlePolicy
     }
 };
 
-constexpr int MockHandlePolicy::InvalidValue;
+constexpr int MockResourcePolicy::InvalidValue;
 
-using MockHandle = rad::Handle<MockHandlePolicy>;
+using MockResource = rad::UniqueResource<MockResourcePolicy>;
 
 namespace
 {
 
-void MockOpener(int* handle)
+void MockOpener(int* resource)
 {
-    *handle = 123;
+    *resource = 123;
 }
 
 } // namespace
 
-class HandleTests : public ::testing::Test
+class UniqueResourceTests : public ::testing::Test
 {
 public:
 
@@ -79,22 +79,22 @@ public:
     }
 };
 
-TEST_F(HandleTests, DefaultConstruct)
+TEST_F(UniqueResourceTests, DefaultConstruct)
 {
     {
-        MockHandle h;
+        MockResource h;
 
-        EXPECT_EQ(h.Get(), MockHandlePolicy::InvalidValue);
+        EXPECT_EQ(h.Get(), MockResourcePolicy::InvalidValue);
     }
 
     EXPECT_EQ(g_IsValidCalls, 1);
     EXPECT_EQ(g_CloseCalls, 0);
 }
 
-TEST_F(HandleTests, Construct)
+TEST_F(UniqueResourceTests, Construct)
 {
     {
-        MockHandle h(456);
+        MockResource h(456);
 
         EXPECT_EQ(h.Get(), 456);
     }
@@ -103,16 +103,16 @@ TEST_F(HandleTests, Construct)
     EXPECT_EQ(g_CloseCalls, 1);
 }
 
-TEST_F(HandleTests, MoveConstruct)
+TEST_F(UniqueResourceTests, MoveConstruct)
 {
     {
-        MockHandle h(456);
-        MockHandle o(Move(h));
+        MockResource h(456);
+        MockResource o(Move(h));
 
         EXPECT_EQ(g_IsValidCalls, 0);
         EXPECT_EQ(g_CloseCalls, 0);
 
-        EXPECT_EQ(h.Get(), MockHandlePolicy::InvalidValue);
+        EXPECT_EQ(h.Get(), MockResourcePolicy::InvalidValue);
         EXPECT_EQ(o.Get(), 456);
     }
 
@@ -120,11 +120,11 @@ TEST_F(HandleTests, MoveConstruct)
     EXPECT_EQ(g_CloseCalls, 1);
 }
 
-TEST_F(HandleTests, MoveAssign)
+TEST_F(UniqueResourceTests, MoveAssign)
 {
     {
-        MockHandle h(456);
-        MockHandle o;
+        MockResource h(456);
+        MockResource o;
 
         EXPECT_EQ(g_IsValidCalls, 0);
         EXPECT_EQ(g_CloseCalls, 0);
@@ -134,7 +134,7 @@ TEST_F(HandleTests, MoveAssign)
         EXPECT_EQ(g_IsValidCalls, 1);
         EXPECT_EQ(g_CloseCalls, 0);
 
-        EXPECT_EQ(h.Get(), MockHandlePolicy::InvalidValue);
+        EXPECT_EQ(h.Get(), MockResourcePolicy::InvalidValue);
         EXPECT_EQ(o.Get(), 456);
     }
 
@@ -142,20 +142,20 @@ TEST_F(HandleTests, MoveAssign)
     EXPECT_EQ(g_CloseCalls, 1);
 }
 
-TEST_F(HandleTests, IsValid)
+TEST_F(UniqueResourceTests, IsValid)
 {
-    MockHandle h;
+    MockResource h;
 
     EXPECT_FALSE(h.IsValid());
 
-    h = MockHandle(123);
+    h = MockResource(123);
 
     EXPECT_TRUE(h.IsValid());
 }
 
-TEST_F(HandleTests, Reset)
+TEST_F(UniqueResourceTests, Reset)
 {
-    MockHandle h;
+    MockResource h;
 
     EXPECT_FALSE(h.IsValid());
 
@@ -176,14 +176,14 @@ TEST_F(HandleTests, Reset)
     EXPECT_EQ(g_CloseCalls, 1);
 }
 
-TEST_F(HandleTests, Release)
+TEST_F(UniqueResourceTests, Release)
 {
-    MockHandle h;
+    MockResource h;
 
     EXPECT_FALSE(h.IsValid());
     EXPECT_FALSE(h);
 
-    EXPECT_EQ(h.Release(), MockHandlePolicy::InvalidValue);
+    EXPECT_EQ(h.Release(), MockResourcePolicy::InvalidValue);
 
     h.Reset(123);
 
@@ -194,13 +194,13 @@ TEST_F(HandleTests, Release)
     EXPECT_FALSE(h.IsValid());
 }
 
-TEST_F(HandleTests, Swap)
+TEST_F(UniqueResourceTests, Swap)
 {
-    MockHandle h(123);
-    MockHandle o;
+    MockResource h(123);
+    MockResource o;
 
     EXPECT_EQ(h.Get(), 123);
-    EXPECT_EQ(o.Get(), MockHandlePolicy::InvalidValue);
+    EXPECT_EQ(o.Get(), MockResourcePolicy::InvalidValue);
 
     EXPECT_EQ(g_CloseCalls, 0);
 
@@ -208,13 +208,13 @@ TEST_F(HandleTests, Swap)
 
     EXPECT_EQ(g_CloseCalls, 0);
 
-    EXPECT_EQ(h.Get(), MockHandlePolicy::InvalidValue);
+    EXPECT_EQ(h.Get(), MockResourcePolicy::InvalidValue);
     EXPECT_EQ(o.Get(), 123);
 }
 
-TEST_F(HandleTests, Put)
+TEST_F(UniqueResourceTests, Put)
 {
-    MockHandle h;
+    MockResource h;
 
     EXPECT_EQ(g_CloseCalls, 0);
 
@@ -235,10 +235,10 @@ TEST_F(HandleTests, Put)
     EXPECT_EQ(h.Get(), 123);
 }
 
-TEST_F(HandleTests, Compare)
+TEST_F(UniqueResourceTests, Compare)
 {
-    MockHandle h(1);
-    MockHandle o(2);
+    MockResource h(1);
+    MockResource o(2);
 
     EXPECT_FALSE(h == o);
     EXPECT_TRUE(h != o);
@@ -247,24 +247,24 @@ TEST_F(HandleTests, Compare)
     EXPECT_FALSE(h > o);
     EXPECT_FALSE(h >= o);
 
-    EXPECT_FALSE(h == MockHandlePolicy::InvalidValue);
-    EXPECT_TRUE(h != MockHandlePolicy::InvalidValue);
-    EXPECT_TRUE(h < MockHandlePolicy::InvalidValue);
-    EXPECT_TRUE(h <= MockHandlePolicy::InvalidValue);
-    EXPECT_FALSE(h > MockHandlePolicy::InvalidValue);
-    EXPECT_FALSE(h >= MockHandlePolicy::InvalidValue);
+    EXPECT_FALSE(h == MockResourcePolicy::InvalidValue);
+    EXPECT_TRUE(h != MockResourcePolicy::InvalidValue);
+    EXPECT_TRUE(h < MockResourcePolicy::InvalidValue);
+    EXPECT_TRUE(h <= MockResourcePolicy::InvalidValue);
+    EXPECT_FALSE(h > MockResourcePolicy::InvalidValue);
+    EXPECT_FALSE(h >= MockResourcePolicy::InvalidValue);
 
-    EXPECT_FALSE(MockHandlePolicy::InvalidValue == h);
-    EXPECT_TRUE(MockHandlePolicy::InvalidValue != h);
-    EXPECT_FALSE(MockHandlePolicy::InvalidValue < h);
-    EXPECT_FALSE(MockHandlePolicy::InvalidValue <= h);
-    EXPECT_TRUE(MockHandlePolicy::InvalidValue > h);
-    EXPECT_TRUE(MockHandlePolicy::InvalidValue >= h);
+    EXPECT_FALSE(MockResourcePolicy::InvalidValue == h);
+    EXPECT_TRUE(MockResourcePolicy::InvalidValue != h);
+    EXPECT_FALSE(MockResourcePolicy::InvalidValue < h);
+    EXPECT_FALSE(MockResourcePolicy::InvalidValue <= h);
+    EXPECT_TRUE(MockResourcePolicy::InvalidValue > h);
+    EXPECT_TRUE(MockResourcePolicy::InvalidValue >= h);
 }
 
-TEST_F(HandleTests, TestDef)
+TEST_F(UniqueResourceTests, TestDef)
 {
-    TestHandle h(123);
+    TestResource h(123);
 
     EXPECT_TRUE(h);
 

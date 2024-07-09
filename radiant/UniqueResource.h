@@ -21,28 +21,30 @@ namespace rad
 
 /// @brief Container to manage lifetime of some resource.
 /// @details This contains is semantically similar to a unique pointer however
-/// tailored to managing things like file handles or references to other
-/// objects.
-/// @tparam Policy The policy for the handle must define and implement static
+/// tailored to managing things like file handles.
+/// @tparam Policy The policy for the resource must define and implement static
 /// types and functionality for how to validate or close the resource. See
-/// HandlePolicy<>.
+/// UniqueResourcePolicy<>.
 template <typename Policy>
-class Handle
+class UniqueResource
 {
 public:
 
     using PolicyType = Policy;
     using ValueType = typename Policy::ValueType;
     static constexpr ValueType InvalidValue = Policy::InvalidValue;
-    using ThisType = Handle<Policy>;
+    using ThisType = UniqueResource<Policy>;
 
-    RAD_S_ASSERTMSG(IsTriv<ValueType>, "Handle manages a trivial type.");
+    RAD_S_ASSERTMSG(IsTriv<ValueType>,
+                    "UniqueResource manages a trivial type.");
     RAD_S_ASSERTMSG(noexcept(PolicyType::IsValid(DeclVal<const ValueType&>())),
-                    "Handle validator may not throw.");
+                    "UniqueResource validator may not throw.");
     RAD_S_ASSERTMSG(noexcept(PolicyType::Close(DeclVal<ValueType&>())),
-                    "Handle closer may not throw.");
+                    "UniqueResource closer may not throw.");
 
-    ~Handle()
+    RAD_NOT_COPYABLE(UniqueResource);
+
+    ~UniqueResource()
     {
         if (Policy::IsValid(static_cast<const ValueType&>(m_value)))
         {
@@ -50,31 +52,29 @@ public:
         }
     }
 
-    /// @brief Default constructs the handle with an invalid value.
-    constexpr Handle() noexcept
+    /// @brief Default constructs the resource with an invalid value.
+    constexpr UniqueResource() noexcept
         : m_value(InvalidValue)
     {
     }
 
-    /// @brief Explicit construction of the handle with some value.
-    /// @param value The handle value to store.
-    constexpr explicit Handle(const ValueType& value) noexcept
+    /// @brief Explicit construction of the resource with some value.
+    /// @param value The resource value to store.
+    constexpr explicit UniqueResource(const ValueType& value) noexcept
         : m_value(value)
     {
     }
 
-    RAD_NOT_COPYABLE(Handle);
-
-    /// @brief Move constructs this handle from another.
-    /// @param other Other handle to move into this one.
-    constexpr Handle(ThisType&& other) noexcept
+    /// @brief Move constructs this resource from another.
+    /// @param other Other resource to move into this one.
+    constexpr UniqueResource(ThisType&& other) noexcept
         : m_value(other.m_value)
     {
         other.m_value = InvalidValue;
     }
 
-    /// @brief Move assigns a handle to this.
-    /// @param other Other handle to move into this one.
+    /// @brief Move assigns a resource to this.
+    /// @param other Other resource to move into this one.
     ThisType& operator=(ThisType&& other) noexcept
     {
         if RAD_LIKELY (AddrOf(other) != this)
@@ -85,21 +85,21 @@ public:
         return *this;
     }
 
-    /// @brief Checks if contained handle is valid.
-    /// @return True if the contained handle is valid, false otherwise.
+    /// @brief Checks if contained resource is valid.
+    /// @return True if the contained resource is valid, false otherwise.
     constexpr bool IsValid() const noexcept
     {
         return Policy::IsValid(static_cast<const ValueType&>(m_value));
     }
 
-    /// @brief Checks if the contained handle is valid.
+    /// @brief Checks if the contained resource is valid.
     constexpr explicit operator bool() const
     {
         return IsValid();
     }
 
-    /// @brief Resets the contained handle with a different value.
-    /// @param value The handle value to store.
+    /// @brief Resets the contained resource with a different value.
+    /// @param value The resource value to store.
     constexpr void Reset(const ValueType& value = InvalidValue) noexcept
     {
         auto prev = m_value;
@@ -111,19 +111,19 @@ public:
         }
     }
 
-    /// @brief Retrieves the handle.
+    /// @brief Retrieves the resource.
     constexpr ValueType& Get() noexcept
     {
         return m_value;
     }
 
-    /// @brief Retrieves the handle.
+    /// @brief Retrieves the resource.
     constexpr const ValueType& Get() const noexcept
     {
         return m_value;
     }
 
-    /// @brief Releases ownership of the handle to the caller.
+    /// @brief Releases ownership of the resource to the caller.
     /// @return The previously managed resource from this object.
     RAD_NODISCARD constexpr ValueType Release() noexcept
     {
@@ -132,8 +132,8 @@ public:
         return value;
     }
 
-    /// @brief Swaps two handle object's managed resource.
-    /// @param other Other handle object to swap with this.
+    /// @brief Swaps two resource object's managed resource.
+    /// @param other Other resource object to swap with this.
     constexpr void Swap(ThisType& other) noexcept
     {
         auto value = m_value;
@@ -142,8 +142,8 @@ public:
     }
 
     /// @brief Helper function for putting something into this object.
-    /// @details Useful for opening handles using an API where a parameter is an
-    /// output parameter.
+    /// @details Useful for opening resources using an API where a parameter is
+    /// an output parameter.
     /// @return Pointer to the internal storage of this object.
     ValueType* Put() noexcept
     {
@@ -166,87 +166,87 @@ private:
 };
 
 template <typename Policy>
-constexpr typename Policy::ValueType Handle<Policy>::InvalidValue;
+constexpr typename Policy::ValueType UniqueResource<Policy>::InvalidValue;
 
 template <typename Policy>
-constexpr inline bool operator==(const Handle<Policy>& l,
-                                 const Handle<Policy>& r)
+constexpr inline bool operator==(const UniqueResource<Policy>& l,
+                                 const UniqueResource<Policy>& r)
 {
     return l.Get() == r.Get();
 }
 
 template <typename Policy>
-constexpr inline bool operator!=(const Handle<Policy>& l,
-                                 const Handle<Policy>& r)
+constexpr inline bool operator!=(const UniqueResource<Policy>& l,
+                                 const UniqueResource<Policy>& r)
 {
     return !(l == r);
 }
 
 template <typename Policy>
-constexpr inline bool operator<(const Handle<Policy>& l,
-                                const Handle<Policy>& r)
+constexpr inline bool operator<(const UniqueResource<Policy>& l,
+                                const UniqueResource<Policy>& r)
 {
     return l.Get() < r.Get();
 }
 
 template <typename Policy>
-constexpr inline bool operator>(const Handle<Policy>& l,
-                                const Handle<Policy>& r)
+constexpr inline bool operator>(const UniqueResource<Policy>& l,
+                                const UniqueResource<Policy>& r)
 {
     return r < l;
 }
 
 template <typename Policy>
-constexpr inline bool operator<=(const Handle<Policy>& l,
-                                 const Handle<Policy>& r)
+constexpr inline bool operator<=(const UniqueResource<Policy>& l,
+                                 const UniqueResource<Policy>& r)
 {
     return !(l > r);
 }
 
 template <typename Policy>
-constexpr inline bool operator>=(const Handle<Policy>& l,
-                                 const Handle<Policy>& r)
+constexpr inline bool operator>=(const UniqueResource<Policy>& l,
+                                 const UniqueResource<Policy>& r)
 {
     return !(l < r);
 }
 
 template <typename Policy>
-constexpr inline bool operator==(const Handle<Policy>& l,
+constexpr inline bool operator==(const UniqueResource<Policy>& l,
                                  const typename Policy::ValueType& r)
 {
     return l.Get() == r;
 }
 
 template <typename Policy>
-constexpr inline bool operator!=(const Handle<Policy>& l,
+constexpr inline bool operator!=(const UniqueResource<Policy>& l,
                                  const typename Policy::ValueType& r)
 {
     return !(l == r);
 }
 
 template <typename Policy>
-constexpr inline bool operator<(const Handle<Policy>& l,
+constexpr inline bool operator<(const UniqueResource<Policy>& l,
                                 const typename Policy::ValueType& r)
 {
     return l.Get() < r;
 }
 
 template <typename Policy>
-constexpr inline bool operator>(const Handle<Policy>& l,
+constexpr inline bool operator>(const UniqueResource<Policy>& l,
                                 const typename Policy::ValueType& r)
 {
     return r < l;
 }
 
 template <typename Policy>
-constexpr inline bool operator<=(const Handle<Policy>& l,
+constexpr inline bool operator<=(const UniqueResource<Policy>& l,
                                  const typename Policy::ValueType& r)
 {
     return !(l > r);
 }
 
 template <typename Policy>
-constexpr inline bool operator>=(const Handle<Policy>& l,
+constexpr inline bool operator>=(const UniqueResource<Policy>& l,
                                  const typename Policy::ValueType& r)
 {
     return !(l < r);
@@ -254,56 +254,56 @@ constexpr inline bool operator>=(const Handle<Policy>& l,
 
 template <typename Policy>
 constexpr inline bool operator==(const typename Policy::ValueType& l,
-                                 const Handle<Policy>& r)
+                                 const UniqueResource<Policy>& r)
 {
     return l == r.Get();
 }
 
 template <typename Policy>
 constexpr inline bool operator!=(const typename Policy::ValueType& l,
-                                 const Handle<Policy>& r)
+                                 const UniqueResource<Policy>& r)
 {
     return !(l == r);
 }
 
 template <typename Policy>
 constexpr inline bool operator<(const typename Policy::ValueType& l,
-                                const Handle<Policy>& r)
+                                const UniqueResource<Policy>& r)
 {
     return l < r.Get();
 }
 
 template <typename Policy>
 constexpr inline bool operator>(const typename Policy::ValueType& l,
-                                const Handle<Policy>& r)
+                                const UniqueResource<Policy>& r)
 {
     return r < l;
 }
 
 template <typename Policy>
 constexpr inline bool operator<=(const typename Policy::ValueType& l,
-                                 const Handle<Policy>& r)
+                                 const UniqueResource<Policy>& r)
 {
     return !(l > r);
 }
 
 template <typename Policy>
 constexpr inline bool operator>=(const typename Policy::ValueType& l,
-                                 const Handle<Policy>& r)
+                                 const UniqueResource<Policy>& r)
 {
     return !(l < r);
 }
 
-/// @brief Default handle policy for convenience.
-/// @details The handle container enables users to define their own policy
-/// verbosely. Which is useful in situations where a handle may have more than
+/// @brief Default resource policy for convenience.
+/// @details The resource container enables users to define their own policy
+/// verbosely. Which is useful in situations where a resource may have more than
 /// one invalid states. This default policy enables a short-hand for most use
-/// cases through HandleDef<>.
-/// @tparam T The type of handle to manage.
-/// @tparam Closer Structure which implements how to close the handle.
-/// @tparam Invalid The value of the handle which indicates it is invalid.
+/// cases through UniqueResourceDef<>.
+/// @tparam T The type of resource to manage.
+/// @tparam Closer Structure which implements how to close the resource.
+/// @tparam Invalid The value of the resource which indicates it is invalid.
 template <typename T, typename Closer, T Invalid = static_cast<T>(0)>
-struct HandlePolicy
+struct UniqueResourcePolicy
 {
     using ValueType = T;
     static constexpr T InvalidValue = Invalid;
@@ -316,20 +316,21 @@ struct HandlePolicy
     static constexpr void Close(T& value) noexcept
     {
         RAD_S_ASSERTMSG(noexcept(Closer::Close(value)),
-                        "Handle closer may not throw");
+                        "UniqueResourcePolicy closer may not throw");
 
         Closer::Close(value);
     }
 };
 
 template <typename T, typename Closer, T Invalid>
-constexpr T HandlePolicy<T, Closer, Invalid>::InvalidValue;
+constexpr T UniqueResourcePolicy<T, Closer, Invalid>::InvalidValue;
 
-/// @brief Helper defining template for a handle.
-/// @tparam T The type of handle to manage.
-/// @tparam Closer Structure which implements how to close the handle.
-/// @tparam Invalid The value of the handle which indicates it is invalid.
+/// @brief Helper defining template for a resource.
+/// @tparam T The type of resource to manage.
+/// @tparam Closer Structure which implements how to close the resource.
+/// @tparam Invalid The value of the resource which indicates it is invalid.
 template <typename T, typename Closer, T Invalid = static_cast<T>(0)>
-using HandleDef = Handle<HandlePolicy<T, Closer, Invalid>>;
+using UniqueResourceDef =
+    UniqueResource<UniqueResourcePolicy<T, Closer, Invalid>>;
 
 } // namespace rad
