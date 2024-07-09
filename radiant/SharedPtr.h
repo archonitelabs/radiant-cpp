@@ -180,6 +180,8 @@ public:
     using ValueType = T;
     using PairType = EmptyOptimizedPair<AllocatorType, ValueType>;
 
+    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAlloc);
+
     template <typename... TArgs>
     PtrBlock(const AllocatorType& alloc, TArgs&&... args) noexcept(
         noexcept(PairType(alloc, Forward<TArgs>(args)...)))
@@ -956,6 +958,8 @@ SharedPtr<T> AllocateShared(const TAlloc& alloc, TArgs&&... args) //
     noexcept(noexcept(detail::AllocateSharedImpl::AllocateShared<T, TAlloc>(
         alloc, Forward<TArgs>(args)...)))
 {
+    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAlloc);
+
     return detail::AllocateSharedImpl::AllocateShared<T, TAlloc>(
         alloc,
         Forward<TArgs>(args)...);
@@ -972,6 +976,8 @@ template <typename T, typename TAlloc RAD_ALLOCATOR_EQ(T), typename... TArgs>
 SharedPtr<T> MakeShared(TArgs&&... args) noexcept(
     noexcept(AllocateShared<T>(DeclVal<TAlloc&>(), Forward<TArgs>(args)...)))
 {
+    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAlloc);
+
     TAlloc alloc;
     return AllocateShared<T>(alloc, Forward<TArgs>(args)...);
 }

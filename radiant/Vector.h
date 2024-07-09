@@ -47,7 +47,7 @@ public:
     using OtherType = Vector<T, OtherTAllocator, OtherTInlineCount>;
 
     RAD_S_ASSERT_NOTHROW_MOVE_T(T);
-    RAD_S_ASSERT_NOTHROW_MOVE_T(TAllocator);
+    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAllocator);
 
     ~Vector()
     {

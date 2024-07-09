@@ -33,7 +33,7 @@ public:
 
     using Type = T;
 
-    RAD_S_ASSERT_NOTHROW_MOVE((IsNoThrowMoveCtor<T> && IsNoThrowMoveAssign<T>));
+    RAD_S_ASSERT_NOTHROW_MOVE_T(T);
 
     template <typename U = T, EnIf<IsDefaultCtor<U>, int> = 0>
     constexpr TypeWrapper() noexcept(IsNoThrowDefaultCtor<T>)
