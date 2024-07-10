@@ -331,6 +331,7 @@ template <typename T, typename TAllocator>
 void VectorAlloc<T, TAllocator>::Clear()
 {
     VectorManipulation<T>().DtorRange(buffer, buffer + size);
+    size = 0;
 }
 
 template <typename T, uint16_t TInlineCount, bool = (TInlineCount > 0)>
