@@ -219,6 +219,89 @@ public:
     }
 };
 
+template <typename T>
+class OOMAllocator
+{
+public:
+
+    static constexpr bool NeedsFree = true;
+    static constexpr bool HasRealloc = true;
+    static constexpr bool HasAllocBytes = true;
+
+    using ThisType = StatefulAllocator<T>;
+    using ValueType = T;
+    using SizeType = uint32_t;
+    using DifferenceType = ptrdiff_t;
+
+    ~OOMAllocator()
+    {
+    }
+
+    explicit OOMAllocator(int oom) noexcept
+        : m_oom(oom)
+    {
+    }
+
+    OOMAllocator(const OOMAllocator&) noexcept = default;
+
+    template <typename U>
+    OOMAllocator(const OOMAllocator<U>& other) noexcept
+        : m_oom(other.m_oom)
+    {
+    }
+
+    template <typename U>
+    struct Rebind
+    {
+        using Other = OOMAllocator<U>;
+    };
+
+    void Free(ValueType* ptr) noexcept
+    {
+        free(ptr);
+    }
+
+    ValueType* Alloc(SizeType count) noexcept
+    {
+        m_oom--;
+        if (m_oom < 0)
+        {
+            return nullptr;
+        }
+
+        return (ValueType*)malloc(count * sizeof(T));
+    }
+
+    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
+    {
+        m_oom--;
+        if (m_oom < 0)
+        {
+            return nullptr;
+        }
+
+        return (ValueType*)realloc(ptr, count * sizeof(T));
+    }
+
+    void FreeBytes(void* ptr) noexcept
+    {
+        free(ptr);
+    }
+
+    void* AllocBytes(SizeType size) noexcept
+    {
+        m_oom--;
+        if (m_oom < 0)
+        {
+            return nullptr;
+        }
+
+        return malloc(size);
+    }
+
+    int m_oom;
+};
+
 class CountingAllocatorImpl
 {
 public:

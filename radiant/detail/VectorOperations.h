@@ -17,6 +17,7 @@
 #include "radiant/Res.h"
 #include "radiant/Utility.h"
 #include "radiant/Span.h"
+#include "radiant/Algorithm.h"
 
 namespace rad
 {
@@ -24,14 +25,55 @@ namespace rad
 namespace detail
 {
 
-//
-// TODO - The noexcept contracts are not complete yet, see the comment near
-// the top of the rad::Vector class. Many of the storage and operational
-// contracts are just set to noexcept, when we cleanly support objects that
-// might throw during manipulation, we need to go back and make the decorations
-// correct. The manipulation decorations are largely correct, but missing
-// assertions.
-//
+template <typename T, typename TAllocator>
+struct VectorAlloc
+{
+    ~VectorAlloc()
+    {
+        if (buffer)
+        {
+            Clear();
+            allocator.Free(buffer);
+        }
+    }
+
+    explicit VectorAlloc(TAllocator& alloc) noexcept
+        : allocator(alloc),
+          buffer(nullptr),
+          size(0),
+          capacity(0)
+    {
+    }
+
+    void Clear();
+
+    bool Alloc(uint32_t count)
+    {
+        buffer = allocator.Alloc(count);
+        if (!buffer)
+        {
+            return false;
+        }
+
+        capacity = count;
+        size = 0;
+
+        return true;
+    }
+
+    T* Release() noexcept
+    {
+        T* tmp = buffer;
+        buffer = nullptr;
+        size = 0;
+        return tmp;
+    }
+
+    TAllocator& allocator;
+    T* buffer;
+    uint32_t size;
+    uint32_t capacity;
+};
 
 template <typename T>
 struct VectorManipulation
@@ -83,6 +125,16 @@ struct VectorManipulation
         }
     }
 
+    template <typename Out>
+    inline void DefaultCtor(Out& dest, uint32_t count)
+    {
+        for (uint32_t i = 0; i < count; i++)
+        {
+            new (dest.buffer + i) T();
+            dest.size++;
+        }
+    }
+
     template <typename U = T,
               EnIf<IsTrivCopyCtor<U> && (sizeof(T) > sizeof(void*)), int> = 0>
     inline void CopyCtor(T* dest, const T& value) noexcept
@@ -97,11 +149,21 @@ struct VectorManipulation
         new (dest) T(value);
     }
 
-    inline void CopyCtor(T* dest, uint32_t count, const T& value) noexcept
+    inline void CopyCtor(T* dest, uint32_t count, const T& value)
     {
         for (uint32_t i = 0; i < count; i++)
         {
             CopyCtor(dest + i, value);
+        }
+    }
+
+    template <typename Out>
+    inline void CopyCtor(Out& dest, uint32_t count, const T& value)
+    {
+        for (uint32_t i = 0; i < count; i++)
+        {
+            CopyCtor(dest.buffer + i, value);
+            dest.size++;
         }
     }
 
@@ -135,7 +197,7 @@ struct VectorManipulation
     template <typename U = T, EnIf<IsTrivCopyCtor<U>, int> = 0>
     inline void CopyCtorDtorDestRange(T* dest, T* src, uint32_t count) noexcept
     {
-        memmove(dest, src, count * sizeof(T));
+        memcpy(dest, src, count * sizeof(T));
     }
 
     template <typename U = T, EnIf<!IsTrivCopyCtor<U>, int> = 0>
@@ -209,6 +271,41 @@ struct VectorManipulation
         }
     }
 
+    template <typename Out, typename U = T, EnIf<IsTrivCopyCtor<U>, int> = 0>
+    inline void CopyCtorRange(Out& dest, const T* src, uint32_t count) noexcept
+    {
+        memcpy(dest.buffer, src, count * sizeof(T));
+        dest.size = count;
+    }
+
+    template <typename Out, typename U = T, EnIf<!IsTrivCopyCtor<U>, int> = 0>
+    inline void CopyCtorRange(Out& dest, const T* src, uint32_t count)
+    {
+        dest.Clear();
+
+        for (uint32_t i = 0; i < count; i++)
+        {
+            CopyCtor(dest.buffer + i, src[i]);
+            dest.size++;
+        }
+    }
+
+    template <typename U = T, EnIf<IsTrivCopyCtor<U>, int> = 0>
+    inline void CopyCtorRange(T* dest, const T* src, uint32_t count) noexcept
+    {
+        memcpy(dest, src, count * sizeof(T));
+    }
+
+    template <typename U = T, EnIf<!IsTrivCopyCtor<U>, int> = 0>
+    inline void CopyCtorRange(T* dest, const T* src, uint32_t count)
+    {
+
+        for (uint32_t i = 0; i < count; i++)
+        {
+            CopyCtor(dest + i, src[i]);
+        }
+    }
+
     template <typename U = T, EnIf<IsTrivMoveAssign<U>, int> = 0>
     inline void MoveAssignRange(T* dest, T* src, uint32_t count) noexcept
     {
@@ -231,32 +328,11 @@ struct VectorManipulation
 };
 
 template <typename T, typename TAllocator>
-struct VectorAlloc
+void VectorAlloc<T, TAllocator>::Clear()
 {
-    ~VectorAlloc()
-    {
-        if (buffer)
-        {
-            allocator.Free(buffer);
-        }
-    }
-
-    VectorAlloc(TAllocator& alloc) noexcept
-        : allocator(alloc),
-          buffer(nullptr)
-    {
-    }
-
-    T* Release() noexcept
-    {
-        T* tmp = buffer;
-        buffer = nullptr;
-        return tmp;
-    }
-
-    TAllocator& allocator;
-    T* buffer;
-};
+    VectorManipulation<T>().DtorRange(buffer, buffer + size);
+    size = 0;
+}
 
 template <typename T, uint16_t TInlineCount, bool = (TInlineCount > 0)>
 struct VectorStorage;
@@ -344,17 +420,17 @@ struct VectorStorage<T, TInlineCount, false>
             return;
         }
 
-        auto data = m_data;
-        m_data = other.m_data;
-        other.m_data = data;
+        rad::Swap(m_data, other.m_data);
+        rad::Swap(m_size, other.m_size);
+        rad::Swap(m_capacity, other.m_capacity);
+    }
 
-        auto size = m_size;
-        m_size = other.m_size;
-        other.m_size = size;
-
-        size = m_capacity;
-        m_capacity = other.m_capacity;
-        other.m_capacity = size;
+    template <typename TAllocator>
+    void Swap(VectorAlloc<ValueType, TAllocator>& other) noexcept
+    {
+        rad::Swap(m_data, other.buffer);
+        rad::Swap(m_size, other.size);
+        rad::Swap(m_capacity, other.capacity);
     }
 
     ValueType* m_data;
@@ -472,9 +548,7 @@ struct VectorStorage<T, TInlineCount, true>
             //
             // Neither are inline, just swap the pointers.
             //
-            auto temp = m_data;
-            m_data = other.m_data;
-            other.m_data = temp;
+            rad::Swap(m_data, other.m_data);
         }
         else if (IsInline() && other.IsInline())
         {
@@ -484,8 +558,10 @@ struct VectorStorage<T, TInlineCount, true>
             //
             uint8_t storage[sizeof(m_inline)];
             auto buffer = reinterpret_cast<ValueType*>(storage);
-            ManipType().MoveCtorRange(buffer, m_inline, m_size);
-            ManipType().MoveAssignRange(m_inline, other.m_inline, other.m_size);
+            ManipType().MoveCtorDtorSrcRange(buffer, m_inline, m_size);
+            ManipType().MoveCtorDtorSrcRange(m_inline,
+                                             other.m_inline,
+                                             other.m_size);
             ManipType().MoveCtorDtorSrcRange(other.m_inline, buffer, m_size);
         }
         else
@@ -522,13 +598,8 @@ struct VectorStorage<T, TInlineCount, true>
             }
         }
 
-        auto size = m_size;
-        m_size = other.m_size;
-        other.m_size = size;
-
-        size = m_capacity;
-        m_capacity = other.m_capacity;
-        other.m_capacity = size;
+        rad::Swap(m_size, other.m_size);
+        rad::Swap(m_capacity, other.m_capacity);
     }
 
     union
@@ -583,8 +654,7 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         }
 
         VectorAlloc<ValueType, TAllocator> vec(alloc);
-        vec.buffer = vec.allocator.Alloc(capacity);
-        if (!vec.buffer)
+        if (!vec.Alloc(capacity))
         {
             return Error::NoMemory;
         }
@@ -612,7 +682,41 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         RAD_VERIFY(ShrinkToFit(alloc).IsOk());
     }
 
-    template <typename TAllocator>
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<!IsNoThrowCopyCtor<U>, int> = 0>
+    Err Copy(TAllocator& alloc, ThisType& to)
+    {
+        if RAD_UNLIKELY (this == &to)
+        {
+            return NoError;
+        }
+
+        // Here we want to provide the strong guarantee, but if the copy
+        // constructor can throw we cannot just overwrite the memory in the
+        // old vector because if an exception happens we will wind up with a
+        // half edited vector.  In the worst case the exception happens copying
+        // the last item.  So, we have to maintain a copy of the entire old
+        // vector somewhere until the copy is complete.  The amount of memory
+        // we need to have is this->Size + to.Size().  For now we have
+        // implemented the basic thing, but should/will optimize further.  Two
+        // easy things we could are to use unused space in the vectors and/or
+        // some stack space to avoid expensive memory allocations when possible.
+        VectorAlloc<ValueType, TAllocator> vec(alloc);
+        if (!vec.Alloc(m_size))
+        {
+            return Error::NoMemory;
+        }
+
+        ManipType().CopyCtorRange(vec, Data(), m_size);
+        to.Swap(vec);
+
+        return NoError;
+    }
+
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<IsNoThrowCopyCtor<U>, int> = 0>
     Err Copy(TAllocator& alloc, ThisType& to) noexcept
     {
         if RAD_UNLIKELY (this == &to)
@@ -626,11 +730,20 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
             return res.Err();
         }
 
-        ManipType().CopyCtorDtorDestRange(to.Data(), Data(), m_size);
-
-        if (to.m_size > m_size)
+        if (to.m_size >= m_size)
         {
-            ManipType().DtorRange(to.Data() + m_size, to.Data() + to.m_size);
+            ManipType().CopyCtorDtorDestRange(to.Data(), Data(), m_size);
+
+            if (to.m_size > m_size)
+            {
+                ManipType().DtorRange(to.Data() + m_size,
+                                      to.Data() + to.m_size);
+            }
+        }
+        else
+        {
+            ManipType().DtorRange(to.Data(), to.Data() + to.m_size);
+            ManipType().CopyCtorRange(to.Data(), Data(), m_size);
         }
 
         to.m_size = m_size;
@@ -647,8 +760,12 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         }
     }
 
-    template <typename TAllocator, typename... TArgs>
-    Err Resize(TAllocator& alloc, SizeType count) noexcept
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<!IsNoThrowCopyCtor<U> || !IsNoThrowDefaultCtor<U>, int> = 0>
+    Err Resize(TAllocator& alloc,
+               SizeType count,
+               const ValueType& value = ValueType())
     {
         if RAD_UNLIKELY (count == m_size)
         {
@@ -670,7 +787,15 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
                 }
             }
 
-            ManipType().DefaultCtor(Data() + m_size, count - m_size);
+            // TODO: Optimize out this allocation when possible.  See, comment
+            // in the copy method for further explanation.
+            VectorAlloc<ValueType, TAllocator> vec(alloc);
+            if (!vec.Alloc(count - m_size))
+            {
+                return Error::NoMemory;
+            }
+            ManipType().CopyCtor(vec, count - m_size, value);
+            ManipType().MoveCtorRange(Data() + m_size, vec.buffer, vec.size);
         }
 
         m_size = count;
@@ -678,10 +803,12 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         return NoError;
     }
 
-    template <typename TAllocator, typename... TArgs>
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<IsNoThrowCopyCtor<U> && IsNoThrowDefaultCtor<U>, int> = 0>
     Err Resize(TAllocator& alloc,
                SizeType count,
-               const ValueType& value) noexcept
+               const ValueType& value = ValueType()) noexcept
     {
         if RAD_UNLIKELY (count == m_size)
         {
@@ -711,7 +838,42 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         return NoError;
     }
 
-    template <typename TAllocator>
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<!IsNoThrowCopyCtor<U>, int> = 0>
+    Err Assign(TAllocator& alloc, SizeType count, const ValueType& value)
+    {
+        // TODO: Optimize out this allocation when possible.  See, comment
+        // in the copy method for further explanation
+        VectorAlloc<ValueType, TAllocator> vec(alloc);
+        if (!vec.Alloc(count))
+        {
+            return Error::NoMemory;
+        }
+
+        ManipType().CopyCtor(vec, count, value);
+        ManipType().DtorRange(Data(), Data() + m_size);
+
+        if (count <= m_capacity)
+        {
+            // As an optimization we could decide to use the inline storage for
+            // small values of count and avoid the memory allocation.
+            ManipType().MoveCtorRange(Data(), vec.buffer, count);
+        }
+        else
+        {
+            m_data = vec.Release();
+            m_capacity = count;
+        }
+
+        m_size = count;
+
+        return NoError;
+    }
+
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<IsNoThrowCopyCtor<U>, int> = 0>
     Err Assign(TAllocator& alloc,
                SizeType count,
                const ValueType& value) noexcept
@@ -747,7 +909,47 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         return NoError;
     }
 
-    template <typename TAllocator>
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<!IsNoThrowCopyCtor<U>, int> = 0>
+    Err Assign(TAllocator& alloc, Span<const ValueType> span)
+    {
+        if (SpansOverlap(span, Span<const ValueType>(Data(), m_size)))
+        {
+            return Error::InvalidAddress;
+        }
+
+        // TODO: Optimize out this allocation when possible.  See, comment
+        // in the copy method for further explanation
+        VectorAlloc<ValueType, TAllocator> vec(alloc);
+        if (!vec.Alloc(span.Size()))
+        {
+            return Error::NoMemory;
+        }
+
+        ManipType().CopyCtorRange(vec, span.Data(), span.Size());
+        ManipType().DtorRange(Data(), Data() + m_size);
+
+        if (span.Size() <= m_capacity)
+        {
+            // As an optimization we could decide to use the inline storage for
+            // small values of count and avoid the memory allocation.
+            ManipType().MoveCtorRange(Data(), vec.buffer, vec.size);
+        }
+        else
+        {
+            m_data = vec.Release();
+            m_capacity = span.Size();
+        }
+
+        m_size = span.Size();
+
+        return NoError;
+    }
+
+    template <typename TAllocator,
+              typename U = T,
+              EnIf<IsNoThrowCopyCtor<U>, int> = 0>
     Err Assign(TAllocator& Allocator, Span<const ValueType> span) noexcept
     {
         if (SpansOverlap(span, Span<const ValueType>(Data(), m_size)))
@@ -775,7 +977,10 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
             data++;
         }
 
-        ManipType().DtorRange(data, end);
+        if (data < end)
+        {
+            ManipType().DtorRange(data, end);
+        }
 
         m_size = span.Size();
 
@@ -783,7 +988,8 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
     }
 
     template <typename TAllocator, typename... TArgs>
-    Err EmplaceBack(TAllocator& alloc, TArgs&&... args) noexcept
+    Err EmplaceBack(TAllocator& alloc,
+                    TArgs&&... args) noexcept(IsNoThrowCtor<T, TArgs...>)
     {
         if RAD_LIKELY (RAD_VERIFY(m_size < UINT32_MAX))
         {
@@ -796,14 +1002,8 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
                 }
             }
 
-            //
-            // See comments near top of of rad::Vector class.
-            //
-            RAD_S_ASSERTMSG(
-                noexcept(ValueType(Forward<TArgs>(args)...)),
-                "rad::Vector does not yet support types that might throw.");
-
-            new (AddrOf(Data()[m_size++])) ValueType(Forward<TArgs>(args)...);
+            new (AddrOf(Data()[m_size])) ValueType(Forward<TArgs>(args)...);
+            m_size++;
 
             return NoError;
         }
