@@ -32,11 +32,7 @@ struct VectorAlloc
     {
         if (buffer)
         {
-            for (T* p = buffer; p != buffer + size; p++)
-            {
-                p->~T();
-            }
-
+            Clear();
             allocator.Free(buffer);
         }
     }
@@ -47,6 +43,15 @@ struct VectorAlloc
           size(0),
           capacity(0)
     {
+    }
+
+
+    void Clear()
+    {
+        for (T* p = buffer; p != buffer + size; p++)
+        {
+            p->~T();
+        }
     }
 
     bool Alloc(uint32_t count)
@@ -283,10 +288,7 @@ struct VectorManipulation
     template <typename Out, typename U = T, EnIf<!IsTrivCopyCtor<U>, int> = 0>
     inline void CopyCtorRange(Out& dest, const T* src, uint32_t count)
     {
-        if (dest.size > 0)
-        {
-            DtorRange(dest.buffer, dest.buffer + dest.size);
-        }
+        dest.Clear();
 
         for (uint32_t i = 0; i < count; i++)
         {
