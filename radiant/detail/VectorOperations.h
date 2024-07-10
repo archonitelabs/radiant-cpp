@@ -45,7 +45,6 @@ struct VectorAlloc
     {
     }
 
-
     void Clear();
 
     bool Alloc(uint32_t count)
