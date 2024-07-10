@@ -218,6 +218,8 @@ public:
 };
 
 template <>
+int VecTesterBase<true>::s_throwCount = -1;
+template <>
 int VecTesterBase<false>::s_throwCount = -1;
 
 using TestVectorIntegral = VectorTest<int>;
@@ -1948,7 +1950,7 @@ REGISTER_TYPED_TEST_SUITE_P(NonTrivialStruct,
 
 using Types = testing::Types<ThrowingVecTester, NonThrowingVecTester>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(TestVector, NonTrivialStruct, Types);
+INSTANTIATE_TYPED_TEST_SUITE_P(TestVector, NonTrivialStruct, Types, );
 
 struct VecTestStruct
 {
