@@ -46,13 +46,7 @@ struct VectorAlloc
     }
 
 
-    void Clear()
-    {
-        for (T* p = buffer; p != buffer + size; p++)
-        {
-            p->~T();
-        }
-    }
+    void Clear();
 
     bool Alloc(uint32_t count)
     {
@@ -333,6 +327,12 @@ struct VectorManipulation
         }
     }
 };
+
+template <typename T, typename TAllocator>
+void VectorAlloc<T, TAllocator>::Clear()
+{
+    VectorManipulation<T>().DtorRange(buffer, buffer + size);
+}
 
 template <typename T, uint16_t TInlineCount, bool = (TInlineCount > 0)>
 struct VectorStorage;
