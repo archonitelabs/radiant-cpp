@@ -326,8 +326,8 @@ public:
     using typename StorageType::OkType;
     using typename StorageType::ErrType;
 
-    RAD_S_ASSERT_NOTHROW_MOVE((IsNoThrowMoveCtor<T> && IsNoThrowMoveAssign<T> &&
-                               IsNoThrowMoveCtor<E> && IsNoThrowMoveAssign<E>));
+    RAD_S_ASSERT_NOTHROW_MOVE_T(T);
+    RAD_S_ASSERT_NOTHROW_MOVE_T(E);
 
     constexpr Result() noexcept
         : StorageType(ResultEmptyTag)

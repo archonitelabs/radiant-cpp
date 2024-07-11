@@ -15,6 +15,7 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
+#include "radiant/TypeTraits.h"
 
 //
 // Users of Radiant may define their own default allocator. Radiant itself
@@ -122,5 +123,20 @@ public:
     void* ReallocBytes(void* ptr, SizeType size);
 };
 #endif
+
+//
+// Radiant allocator concept requires:
+// - Destruction does not throw.
+// - Copying does not throw.
+// - Moving does not throw.
+// - Freeing memory does not throw.
+//
+template <typename T>
+RAD_INLINE_VAR constexpr bool AllocatorRequires =
+    (IsNoThrowDtor<T> &&                               //
+     IsNoThrowCopyCtor<T> && IsNoThrowCopyAssign<T> && //
+     IsNoThrowMoveCtor<T> && IsNoThrowMoveAssign<T> &&
+     noexcept(DeclVal<T>().Free(nullptr)) &&
+     noexcept(DeclVal<T>().FreeBytes(nullptr)));
 
 } // namespace rad
