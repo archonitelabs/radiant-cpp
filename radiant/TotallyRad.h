@@ -152,26 +152,12 @@ static_assert(!(RAD_WINDOWS && RAD_MACOS), "env invalid os");
 #error unsupported hardware
 #endif
 
+#define RAD_UNUSED(x) ((void)x)
+
 #include <stdint.h>
 
-#if RAD_WINDOWS
-#if RAD_KERNEL_MODE
+#if RAD_WINDOWS && RAD_KERNEL_MODE
 #include <wdm.h>
-#else
-#define WIN32_LEAN_AND_MEAN
-#define WIN32_NO_STATUS
-#include <Windows.h>
-#undef WIN32_NO_STATUS
-#include <ntstatus.h>
-#endif
-#endif
-
-#if RAD_WINDOWS
-#define RAD_UNUSED(x)         UNREFERENCED_PARAMETER(x)
-#define RAD_YIELD_PROCESSOR() YieldProcessor()
-#else
-#define RAD_UNUSED(x)         ((void)x)
-#define RAD_YIELD_PROCESSOR() sched_yield()
 #endif
 
 #define RAD_CONCAT_INNER(x, y) x##y

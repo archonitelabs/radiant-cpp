@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "radiant/TotallyRad.h"
 #include "radiant/TypeTraits.h"
 #include "radiant/Res.h"
 

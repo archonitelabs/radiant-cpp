@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
 #include "radiant/TypeWrapper.h"
 
 #include <initializer_list>

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
 #include "radiant/Iterator.h"
 #include "radiant/Byte.h"
 

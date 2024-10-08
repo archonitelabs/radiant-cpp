@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
 #include "radiant/Memory.h"
 #include "radiant/EmptyOptimizedPair.h"
 #include "radiant/detail/VectorOperations.h"
