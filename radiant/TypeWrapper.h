@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
 #include "radiant/Utility.h"
 
 #if RAD_ENABLE_STD

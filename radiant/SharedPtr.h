@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
 #include "radiant/Memory.h"
 #include "radiant/Atomic.h"
 #include "radiant/Locks.h"

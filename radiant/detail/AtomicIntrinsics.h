@@ -14,10 +14,25 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
 #include "radiant/Utility.h"
 
 #if RAD_WINDOWS && RAD_KERNEL_MODE
 #include <ntddk.h>
+#endif
+
+#if RAD_WINDOWS && RAD_USER_MODE
+#define WIN32_LEAN_AND_MEAN
+#define WIN32_NO_STATUS
+#include <Windows.h>
+#undef WIN32_NO_STATUS
+#include <ntstatus.h>
+#endif
+
+#if RAD_WINDOWS
+#define RAD_YIELD_PROCESSOR() YieldProcessor()
+#else
+#define RAD_YIELD_PROCESSOR() sched_yield()
 #endif
 
 namespace rad
