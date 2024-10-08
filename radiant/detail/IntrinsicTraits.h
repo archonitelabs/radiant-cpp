@@ -24,26 +24,25 @@
 #if __has_builtin(__is_enum)
 #define INTRINSIC_IS_ENUM(T) __is_enum(T)
 #else
-static_assert(false, "compiler does not support intrinsic __is_enum")
+RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_enum")
 #endif
 
 #if __has_builtin(__is_base_of)
 #define INTRINSIC_IS_BASE_OF(B, D) __is_base_of(B, D)
 #else
-    static_assert(false, "compiler does not support intrinsic __is_base_of")
+RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_base_of")
 #endif
 
 #if __has_builtin(__is_empty)
 #define INTRINSIC_IS_EMPTY(T) __is_empty(T)
 #else
-        static_assert(false, "compiler does not support intrinsic __is_empty")
+RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_empty")
 #endif
 
 #if __has_builtin(__is_polymorphic)
 #define INTRINSIC_IS_POLYMORPHIC(T) __is_polymorphic(T)
 #else
-            static_assert(
-                false, "compiler does not support intrinsic __is_polymorphic")
+RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_polymorphic")
 #endif
 
 #if __has_builtin(__is_trivially_destructible)
@@ -51,53 +50,52 @@ static_assert(false, "compiler does not support intrinsic __is_enum")
 #elif __has_builtin(__has_trivial_destructor)
 #define INTRINSIC_IS_TRIVIALLY_DESTRUCTIBLE(T) __has_trivial_destructor(T)
 #else
-static_assert(false,
-              "compiler does not support intrinsic for either "
-              "__is_trivially_destructible or __has_trivial_destructor");
+RAD_S_ASSERTMSG(false,
+                "compiler does not support intrinsic for either "
+                "__is_trivially_destructible or __has_trivial_destructor");
 #endif
 
 #if __has_builtin(__is_assignable)
 #define INTRINSIC_IS_ASSIGNABLE(L, R) __is_assignable(L, R)
 #else
-                static_assert(
-                    false,
-                    "compiler does not support intrinsic __is_assignable");
+RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_assignable");
 #endif
 
 #if __has_builtin(__is_constructible)
 #define INTRINSIC_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
 #else
-static_assert(false, "compiler does not support intrinsic __is_constructible");
+RAD_S_ASSERTMSG(false,
+                "compiler does not support intrinsic __is_constructible");
 #endif
 
 #if __has_builtin(__is_trivially_assignable)
 #define INTRINSIC_IS_TRIVIALLY_ASSIGNABLE(L, R) __is_trivially_assignable(L, R)
 #else
-static_assert(false,
-              "compiler does not support intrinsic __is_trivially_assignable");
+RAD_S_ASSERTMSG(
+    false, "compiler does not support intrinsic __is_trivially_assignable");
 #endif
 
 #if __has_builtin(__is_trivially_constructible)
 #define INTRINSIC_IS_TRIVIALLY_CONSTRUCTIBLE(...)                              \
     __is_trivially_constructible(__VA_ARGS__)
 #else
-static_assert(
+RAD_S_ASSERTMSG(
     false, "compiler does not support intrinsic __is_trivially_constructible");
 #endif
 
 #if __has_builtin(__is_nothrow_assignable) || defined(RAD_GCC_VERSION)
 #define INTRINSIC_IS_NOTHROW_ASSIGNABLE(L, R) __is_nothrow_assignable(L, R)
 #else
-// static_assert(false, "compiler does not support intrinsic
-// __is_nothrow_assignable");
+RAD_S_ASSERTMSG(false,
+                "compiler does not support intrinsic __is_nothrow_assignable");
 #endif
 
 #if __has_builtin(__is_nothrow_constructible) || defined(RAD_GCC_VERSION)
 #define INTRINSIC_IS_NOTHROW_CONSTRUCTIBLE(...)                                \
     __is_nothrow_constructible(__VA_ARGS__)
 #else
-// static_assert(false, "compiler does not support intrinsic
-// __is_nothrow_constructible");
+RAD_S_ASSERTMSG(
+    false, "compiler does not support intrinsic __is_nothrow_constructible");
 #endif
 
 #if __has_builtin(__is_trivial)
@@ -111,6 +109,6 @@ static_assert(
 #if __has_builtin(__has_virtual_destructor)
 #define INTRINSIC_HAS_VIRTUAL_DESTRUCTOR(T) __has_virtual_destructor(T)
 #else
-static_assert(false,
-              "compiler does not support intrinsic __has_virtual_destructor");
+RAD_S_ASSERTMSG(false,
+                "compiler does not support intrinsic __has_virtual_destructor");
 #endif

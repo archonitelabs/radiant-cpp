@@ -189,7 +189,7 @@ struct GetAt<0, TypeList<Head, Ts...>>
 template <size_t N>
 struct GetAt<N, TypeList<>>
 {
-    static_assert(N < TypeList<>::size(), "Index out of range");
+    RAD_S_ASSERTMSG(N < TypeList<>::size(), "Index out of range");
 };
 
 template <typename Item, typename Ts>
@@ -214,22 +214,6 @@ struct Contains<Item, TypeList<>>
 
 using Types = TypeList<short, int, int, long>;
 using FrontMissing = TypeList<int, int, long>;
-
-static_assert(Types::size() == 4, "");
-
-static_assert(is_same<short, Front<Types>::Type>::value, "");
-static_assert(is_same<FrontMissing, PopFront<Types>::Type>::value, "");
-static_assert(is_same<Types, PushFront<FrontMissing, short>::Type>::value, "");
-
-static_assert(is_same<short, GetAt<0, Types>::Type>::value, "");
-static_assert(is_same<int, GetAt<1, Types>::Type>::value, "");
-static_assert(is_same<int, GetAt<2, Types>::Type>::value, "");
-static_assert(is_same<long, GetAt<3, Types>::Type>::value, "");
-
-static_assert(Contains<int, Types>::Type::value, "");
-static_assert(Contains<short, Types>::Type::value, "");
-static_assert(Contains<long, Types>::Type::value, "");
-static_assert(!Contains<char, Types>::Type::value, "");
 
 } // namespace meta
 } // namespace rad

@@ -109,8 +109,8 @@ struct DeclvalSentinel
 template <typename T>
 typename add_rvalue_reference<T>::type declval() noexcept
 {
-    static_assert(detail::DeclvalSentinel<T>::evaluated,
-                  "declval is not allowed in an evaluated context");
+    RAD_S_ASSERTMSG(detail::DeclvalSentinel<T>::evaluated,
+                    "declval is not allowed in an evaluated context");
     return typename add_rvalue_reference<T>::type();
 }
 } // namespace rad
@@ -385,8 +385,8 @@ struct DeclvalSentinel
 template <typename T>
 typename add_rvalue_reference<T>::type declval() noexcept
 {
-    static_assert(detail::DeclvalSentinel<T>::evaluated,
-                  "declval is not allowed in an evaluated context");
+    RAS_S_ASSERTMSG(detail::DeclvalSentinel<T>::evaluated,
+                    "declval is not allowed in an evaluated context");
     return typename add_rvalue_reference<T>::type();
 }
 
