@@ -15,9 +15,13 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
+#include "radiant/TypeTraits.h"
 #include "radiant/TypeWrapper.h"
 
+#include <stdint.h>
+#if RAD_ENABLE_STD
 #include <initializer_list>
+#endif
 
 namespace rad
 {

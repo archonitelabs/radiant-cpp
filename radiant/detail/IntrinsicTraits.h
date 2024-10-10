@@ -14,40 +14,35 @@
 
 #pragma once
 
-#ifdef RAD_MSC_VERSION
-// MSVC does not seem to have something like __has_builtin, but
-// also seems to define a superset of what the other compilers do
-// in terms of intrinsics
-#define __has_builtin(v) 1
-#endif
+#include "radiant/TotallyRad.h"
 
-#if __has_builtin(__is_enum)
+#if RAD_HAS_BUILTIN(__is_enum)
 #define INTRINSIC_IS_ENUM(T) __is_enum(T)
 #else
 RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_enum")
 #endif
 
-#if __has_builtin(__is_base_of)
+#if RAD_HAS_BUILTIN(__is_base_of)
 #define INTRINSIC_IS_BASE_OF(B, D) __is_base_of(B, D)
 #else
 RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_base_of")
 #endif
 
-#if __has_builtin(__is_empty)
+#if RAD_HAS_BUILTIN(__is_empty)
 #define INTRINSIC_IS_EMPTY(T) __is_empty(T)
 #else
 RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_empty")
 #endif
 
-#if __has_builtin(__is_polymorphic)
+#if RAD_HAS_BUILTIN(__is_polymorphic)
 #define INTRINSIC_IS_POLYMORPHIC(T) __is_polymorphic(T)
 #else
 RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_polymorphic")
 #endif
 
-#if __has_builtin(__is_trivially_destructible)
+#if RAD_HAS_BUILTIN(__is_trivially_destructible)
 #define INTRINSIC_IS_TRIVIALLY_DESTRUCTIBLE(T) __is_trivially_destructible(T)
-#elif __has_builtin(__has_trivial_destructor)
+#elif RAD_HAS_BUILTIN(__has_trivial_destructor)
 #define INTRINSIC_IS_TRIVIALLY_DESTRUCTIBLE(T) __has_trivial_destructor(T)
 #else
 RAD_S_ASSERTMSG(false,
@@ -55,27 +50,27 @@ RAD_S_ASSERTMSG(false,
                 "__is_trivially_destructible or __has_trivial_destructor");
 #endif
 
-#if __has_builtin(__is_assignable)
+#if RAD_HAS_BUILTIN(__is_assignable)
 #define INTRINSIC_IS_ASSIGNABLE(L, R) __is_assignable(L, R)
 #else
 RAD_S_ASSERTMSG(false, "compiler does not support intrinsic __is_assignable");
 #endif
 
-#if __has_builtin(__is_constructible)
+#if RAD_HAS_BUILTIN(__is_constructible)
 #define INTRINSIC_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
 #else
 RAD_S_ASSERTMSG(false,
                 "compiler does not support intrinsic __is_constructible");
 #endif
 
-#if __has_builtin(__is_trivially_assignable)
+#if RAD_HAS_BUILTIN(__is_trivially_assignable)
 #define INTRINSIC_IS_TRIVIALLY_ASSIGNABLE(L, R) __is_trivially_assignable(L, R)
 #else
 RAD_S_ASSERTMSG(
     false, "compiler does not support intrinsic __is_trivially_assignable");
 #endif
 
-#if __has_builtin(__is_trivially_constructible)
+#if RAD_HAS_BUILTIN(__is_trivially_constructible)
 #define INTRINSIC_IS_TRIVIALLY_CONSTRUCTIBLE(...)                              \
     __is_trivially_constructible(__VA_ARGS__)
 #else
@@ -83,14 +78,14 @@ RAD_S_ASSERTMSG(
     false, "compiler does not support intrinsic __is_trivially_constructible");
 #endif
 
-#if __has_builtin(__is_nothrow_assignable) || defined(RAD_GCC_VERSION)
+#if RAD_HAS_BUILTIN(__is_nothrow_assignable) || defined(RAD_GCC_VERSION)
 #define INTRINSIC_IS_NOTHROW_ASSIGNABLE(L, R) __is_nothrow_assignable(L, R)
 #else
 RAD_S_ASSERTMSG(false,
                 "compiler does not support intrinsic __is_nothrow_assignable");
 #endif
 
-#if __has_builtin(__is_nothrow_constructible) || defined(RAD_GCC_VERSION)
+#if RAD_HAS_BUILTIN(__is_nothrow_constructible) || defined(RAD_GCC_VERSION)
 #define INTRINSIC_IS_NOTHROW_CONSTRUCTIBLE(...)                                \
     __is_nothrow_constructible(__VA_ARGS__)
 #else
@@ -98,7 +93,7 @@ RAD_S_ASSERTMSG(
     false, "compiler does not support intrinsic __is_nothrow_constructible");
 #endif
 
-#if __has_builtin(__is_trivial)
+#if RAD_HAS_BUILTIN(__is_trivial)
 #define IS_TRIVIAL_IMPL(T) __is_trivial(T)
 #else
 #define IS_TRIVIAL_IMPL(T)                                                     \
@@ -106,7 +101,7 @@ RAD_S_ASSERTMSG(
      is_trivially_default_constructible<T>::value)
 #endif
 
-#if __has_builtin(__has_virtual_destructor)
+#if RAD_HAS_BUILTIN(__has_virtual_destructor)
 #define INTRINSIC_HAS_VIRTUAL_DESTRUCTOR(T) __has_virtual_destructor(T)
 #else
 RAD_S_ASSERTMSG(false,

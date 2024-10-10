@@ -154,10 +154,19 @@ static_assert(!(RAD_WINDOWS && RAD_MACOS), "env invalid os");
 
 #define RAD_UNUSED(x) ((void)x)
 
-#include <stdint.h>
+#ifdef RAD_MSC_VERSION
+// MSVC does not seem to have something like __has_builtin, but
+// also seems to define a superset of what the other compilers do
+// in terms of intrinsics
+#define RAD_HAS_BUILTIN(v) 1
+#else
+#define RAD_HAS_BUILTIN(v) __has_builtin(v)
+#endif
 
-#if RAD_WINDOWS && RAD_KERNEL_MODE
-#include <wdm.h>
+#if RAD_WINDOWS
+#define RAD_YIELD_PROCESSOR() YieldProcessor()
+#else
+#define RAD_YIELD_PROCESSOR() sched_yield()
 #endif
 
 #define RAD_CONCAT_INNER(x, y) x##y

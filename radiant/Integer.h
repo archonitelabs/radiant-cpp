@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include "radiant/TotallyRad.h"
-#include "radiant/TypeTraits.h"
 #include "radiant/Res.h"
+#include "radiant/TypeTraits.h"
+
+#include <stdint.h>
 
 namespace rad
 {

@@ -14,8 +14,8 @@
 
 #include "radiant/Utility.h"
 
-#include <initializer_list>
 #include <exception>
+#include <initializer_list>
 
 namespace radtest
 {

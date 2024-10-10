@@ -14,7 +14,10 @@
 
 #pragma once
 
-#include <cstddef>
+#include "radiant/TotallyRad.h"
+
+#include <stddef.h>
+#include <stdint.h>
 
 namespace rad
 {

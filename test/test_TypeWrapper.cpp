@@ -19,11 +19,10 @@
 #define RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS 0
 #define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 0
 
-#include "gtest/gtest.h"
-
-#include "test/TestThrow.h"
-
 #include "radiant/TypeWrapper.h"
+
+#include "gtest/gtest.h"
+#include "test/TestThrow.h"
 
 template <typename T>
 using TW = rad::TypeWrapper<T>;

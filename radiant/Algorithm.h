@@ -15,9 +15,6 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
-#include "radiant/TypeTraits.h"
-#include "radiant/Utility.h"
-#include "radiant/TotallyRad.h"
 
 namespace rad
 {

@@ -1,0 +1,9 @@
+---
+InheritParentConfig: true
+Checks:
+  - misc-include-cleaner
+  - llvm-include-order
+  #- cppcoreguidelines-*
+  #- performance-*
+  #- portability-*
+  #- -cppcoreguidelines-macro-usage

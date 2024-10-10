@@ -24,6 +24,7 @@ import subprocess
 import sys
 
 import rad.bazel
+import rad.clang_tidy
 import rad.coverage
 import rad.intellisense
 import rad.repo
@@ -139,6 +140,8 @@ def coverage(args) -> bool:
 
 def lint(args) -> bool:
     """Runs lint checks for the Radiant project."""
+    if args.clang_tidy is not None:
+        return rad.clang_tidy.bootstrap(args.clang_tidy)
     env = os.environ.copy()
     if args.skip:
         env["SKIP"] = args.skip
@@ -323,6 +326,11 @@ def main() -> int:
         type=str,
         required=False,
         help="skip the specified lint checks",
+    )
+    lint_parser.add_argument(
+        "--clang-tidy",
+        nargs="*",
+        help="bootstraps clang-tidy with the given arguments",
     )
     lint_parser.set_defaults(func=lint)
 

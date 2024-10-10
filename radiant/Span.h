@@ -15,8 +15,12 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
-#include "radiant/Iterator.h"
 #include "radiant/Byte.h"
+#include "radiant/Iterator.h"
+#include "radiant/TypeTraits.h"
+
+#include <stddef.h>
+#include <stdint.h>
 
 namespace rad
 {

@@ -15,7 +15,10 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
+#include "radiant/TypeTraits.h"
 #include "radiant/detail/AtomicIntrinsics.h"
+
+#include <stddef.h>
 
 namespace rad
 {

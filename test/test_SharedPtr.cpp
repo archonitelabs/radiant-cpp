@@ -13,9 +13,8 @@
 // limitations under the License.
 
 #include "gtest/gtest.h"
-
-#include "test/TestThrow.h"
 #include "test/TestAlloc.h"
+#include "test/TestThrow.h"
 #define RAD_DEFAULT_ALLOCATOR radtest::Allocator
 
 #include "radiant/SharedPtr.h"

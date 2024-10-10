@@ -14,10 +14,14 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
+#include "radiant/Algorithm.h" // NOLINT(misc-include-cleaner)
+#include "radiant/Iterator.h"
 #include "radiant/Res.h"
-#include "radiant/Utility.h"
 #include "radiant/Span.h"
-#include "radiant/Algorithm.h"
+#include "radiant/TypeTraits.h"
+
+#include <stdint.h>
 
 namespace rad
 {

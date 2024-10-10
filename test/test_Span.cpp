@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "gtest/gtest.h"
-
 #include "radiant/Span.h"
 #include "radiant/Utility.h"
+
+#include "gtest/gtest.h"
 #include "test/TestThrow.h"
 
 static constexpr auto g_SpanString = rad::MakeSpan("Span String");
