@@ -15,10 +15,14 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
-#include "radiant/Memory.h"
 #include "radiant/Atomic.h"
-#include "radiant/Locks.h"
 #include "radiant/EmptyOptimizedPair.h"
+#include "radiant/Locks.h"  // NOLINT(misc-include-cleaner)
+#include "radiant/Memory.h" // NOLINT(misc-include-cleaner)
+#include "radiant/TypeTraits.h"
+#include "radiant/detail/AtomicIntrinsics.h"
+
+#include <stdint.h>
 
 namespace rad
 {

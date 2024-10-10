@@ -13,6 +13,7 @@ repos:
     rev: 9a9bbc00895bbdb7670231c2565d4f1309c42905  # v1.3.5
     hooks:
       - id: clang-format
+        args: [-i]
   - repo: https://github.com/psf/black
     rev: ec91a2be3c44d88e1a3960a4937ad6ed3b63464e  # 23.12.1
     hooks:
@@ -28,4 +29,13 @@ repos:
         entry: python -m pylint
         language: system
         types: [python]
+        require_serial: true
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy
+        entry: rad
+        args: [lint, --clang-tidy]
+        language: python
+        files: \.(c|cc|cpp|cxx|h|hh|hpp|hxx|)$
         require_serial: true

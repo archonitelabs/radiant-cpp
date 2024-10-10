@@ -14,6 +14,13 @@
 
 #pragma once
 
+#include "radiant/TotallyRad.h"
+#include "radiant/detail/IntrinsicTraits.h"
+#include "radiant/detail/Meta.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
 #define USING_STL_TYPETRAITS 0
 #if USING_STL_TYPETRAITS
 
@@ -116,10 +123,6 @@ typename add_rvalue_reference<T>::type declval() noexcept
 } // namespace rad
 
 #else
-
-#include "radiant/TotallyRad.h"
-#include "radiant/detail/Meta.h"
-#include "radiant/detail/IntrinsicTraits.h"
 
 namespace rad
 {
@@ -302,7 +305,7 @@ struct remove_all_extents<T[]>
     using type = typename remove_all_extents<T>::type;
 };
 
-template <typename T, std::size_t N>
+template <typename T, size_t N>
 struct remove_all_extents<T[N]>
 {
     using type = typename remove_all_extents<T>::type;

@@ -107,13 +107,13 @@ def test(label, args=None):
     return res
 
 
-def generate_compile_commands():
-    """Generates compile_commands.json using bazel."""
-    logging.info("generating compile_commands.json")
-    res = BAZEL.run(["run", "@hedron_compile_commands//:refresh_all"])
+def refresh_compile_commands():
+    """Refreshes compile_commands.json using bazel."""
+    logging.info("refreshing compile_commands.json")
+    res = BAZEL.run(["run", ":refresh_compile_commands"])
     logging.log(
         logging.INFO if res else logging.ERROR,
-        "compile_commands.json generated" if res else "compile_commands.json failed!",
+        "compile_commands.json refreshed" if res else "compile_commands.json failed!",
     )
     return res
 

@@ -17,6 +17,8 @@
 #include "radiant/TotallyRad.h"
 #include "radiant/detail/StdTypeTraits.h"
 
+#include <stdint.h>
+
 namespace rad
 {
 
