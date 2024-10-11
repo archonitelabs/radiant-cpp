@@ -14,19 +14,24 @@
 #define RAD_DEFAULT_ALLOCATOR radtest::Allocator
 
 #include <radiant/List.h>
+#include <radiant/Span.h>
 
 #include "test/TestAlloc.h"
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <utility>
 
 using namespace testing;
 
 // ensure no_unique_address is doing what we want
-static_assert(sizeof(rad::ListUntyped) == 2 * sizeof(void*));
-static_assert(sizeof(rad::List<int>) == 2 * sizeof(void*));
-static_assert(sizeof(rad::ListUntyped) == sizeof(rad::List<int>));
+static_assert(sizeof(rad::detail::ListUntyped) == 2 * sizeof(void*),
+              "unexpected object size");
+static_assert(sizeof(rad::List<int>) == 2 * sizeof(void*),
+              "unexpected object size");
+static_assert(sizeof(rad::detail::ListUntyped) == sizeof(rad::List<int>),
+              "unexpected object size");
 
 // TODO: don't forget to test iterator operations and iterator stability!
 
@@ -234,6 +239,29 @@ TEST(ListTest, ImmovableEmplaceBack)
     ListValEqual(i, { 42, 99, 77 });
 }
 
+TEST(ListTest, AssignInitList)
+{
+    rad::List<int> li;
+    EXPECT_TRUE(li.AssignInitializerList({}).IsOk());
+    EXPECT_TRUE(li.Empty());
+
+    EXPECT_TRUE(li.AssignInitializerList({ 42 }).IsOk());
+    EXPECT_EQ(1, li.ExpensiveSize());
+
+    EXPECT_TRUE(li.AssignInitializerList({ 100, 101, 102, 103 }).IsOk());
+    EXPECT_EQ(4, li.ExpensiveSize());
+
+    int i = 100;
+    for (int elt : li)
+    {
+        EXPECT_EQ(i, elt);
+        ++i;
+    }
+
+    EXPECT_TRUE(li.AssignInitializerList({}).IsOk());
+    EXPECT_TRUE(li.Empty());
+}
+
 TEST(ListTest, MoveConstruct)
 {
     {
@@ -252,8 +280,7 @@ TEST(ListTest, MoveConstruct)
     }
     {
         rad::List<int> two;
-        EXPECT_TRUE(two.PushBack(1).IsOk());
-        EXPECT_TRUE(two.PushBack(2).IsOk());
+        EXPECT_TRUE(two.AssignInitializerList({ 1, 2 }).IsOk());
 
         rad::List<int> move_from_two(std::move(two));
         ListEqual(two, {});
@@ -261,9 +288,7 @@ TEST(ListTest, MoveConstruct)
     }
     {
         rad::List<int> three;
-        EXPECT_TRUE(three.PushBack(1).IsOk());
-        EXPECT_TRUE(three.PushBack(2).IsOk());
-        EXPECT_TRUE(three.PushBack(3).IsOk());
+        EXPECT_TRUE(three.AssignInitializerList({ 1, 2, 3 }).IsOk());
 
         rad::List<int> move_from_three(std::move(three));
         ListEqual(three, {});
@@ -291,22 +316,19 @@ TEST(ListTest, ClearSome)
     i.Clear();
     EXPECT_TRUE(i.Empty());
 
-    EXPECT_TRUE(i.PushBack(2).IsOk());
-    EXPECT_TRUE(i.PushBack(3).IsOk());
+    EXPECT_TRUE(i.AssignInitializerList({ 2, 3 }).IsOk());
     EXPECT_EQ(i.ExpensiveSize(), 2);
     i.Clear();
     EXPECT_TRUE(i.Empty());
 
-    EXPECT_TRUE(i.PushBack(4).IsOk());
-    EXPECT_TRUE(i.PushBack(5).IsOk());
-    EXPECT_TRUE(i.PushBack(6).IsOk());
+    EXPECT_TRUE(i.AssignInitializerList({ 4, 5, 6 }).IsOk());
     EXPECT_EQ(i.ExpensiveSize(), 3);
     i.Clear();
     EXPECT_TRUE(i.Empty());
 }
 
 #if RAD_WINDOWS
-// MSVC warns that the body of the first for loop is unreachabe, which is true.
+// MSVC warns that the body of the first for loop is unreachable, which is true.
 // But that's also what the test is trying to ensure.  So disable the unhelpful
 // warning.  Doing this for the whole function, because narrower scoped
 // disables aren't getting accepted.
@@ -323,9 +345,7 @@ TEST(ListTest, RangeForLoop)
         FAIL() << "should be empty";
     }
 
-    EXPECT_TRUE(input.PushBack(0).IsOk());
-    EXPECT_TRUE(input.PushBack(1).IsOk());
-    EXPECT_TRUE(input.PushBack(2).IsOk());
+    EXPECT_TRUE(input.AssignInitializerList({ 0, 1, 2 }).IsOk());
 
     // ensure that the references we get are "real"
     int i = 0;
@@ -346,3 +366,38 @@ TEST(ListTest, RangeForLoop)
 #if RAD_WINDOWS
 #pragma warning(pop)
 #endif
+
+TEST(ListTest, AssignSome)
+{
+    // TODO: forward and input iterators.  Proxy iterators?
+    rad::List<int> input;
+    int* np = nullptr;
+    EXPECT_TRUE(input.AssignSome(np, np).IsOk());
+    EXPECT_TRUE(input.Empty());
+
+    int arr[] = { 101, 203, 304 };
+    EXPECT_TRUE(input.AssignSome(std::begin(arr), std::end(arr)).IsOk());
+    ListEqual(input, { 101, 203, 304 });
+
+    rad::List<int> new_copy;
+    EXPECT_TRUE(new_copy.AssignSome(input.begin(), input.end()).IsOk());
+    ListEqual(input, { 101, 203, 304 });
+}
+
+TEST(ListTest, AssignRange)
+{
+    // TODO: forward and input iterators.  Proxy iterators?
+    rad::List<int> input;
+    rad::Span<int> empty;
+
+    EXPECT_TRUE(input.AssignRange(empty).IsOk());
+    EXPECT_TRUE(input.Empty());
+
+    std::array<int, 3> arr = { 101, 203, 304 };
+    EXPECT_TRUE(input.AssignRange(arr).IsOk());
+    ListEqual(input, { 101, 203, 304 });
+
+    rad::List<int> new_copy;
+    EXPECT_TRUE(new_copy.AssignRange(input).IsOk());
+    ListEqual(input, { 101, 203, 304 });
+}

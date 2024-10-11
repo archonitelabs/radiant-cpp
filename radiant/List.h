@@ -30,6 +30,8 @@ namespace rad
 template <typename T, typename TAllocator RAD_ALLOCATOR_EQ(T)>
 class List;
 
+namespace detail
+{
 template <typename T>
 class ListConstIterator;
 
@@ -379,6 +381,7 @@ public:
 
     ListBasicNode m_head;
 };
+} // namespace detail
 
 /*!
     @brief Cross platform (and kernel appropriate) doubly linked list
@@ -402,7 +405,8 @@ public:
 
     Reverse iterators aren't currently supported, though there isn't any reason
     that they couldn't be supported.  The return on investment isn't currently
-    there. Same story for unique, merge, and sort.
+    there. Same story for unique, merge, and sort. TODO: reverse iterators are
+    cheap in radiant.
 
     Removed size() related functions, as making size() O(1) interferes with
     efficient splicing, and having size() be O(N) is too much of a foot gun. The
@@ -454,10 +458,11 @@ public:
     using ConstReference = const ValueType&;
     using SizeType = size_t;
     using DifferenceType = ptrdiff_t;
-    using Iterator = ListIterator<T>;
-    using ConstIterator = ListConstIterator<T>;
+    using Iterator = ::rad::detail::ListIterator<T>;
+    using ConstIterator = ::rad::detail::ListConstIterator<T>;
 
-    using Rebound = typename TAllocator::template Rebind<ListNode<T>>::Other;
+    using Rebound =
+        typename TAllocator::template Rebind<::rad::detail::ListNode<T>>::Other;
 
     List() = default;
 
@@ -609,14 +614,14 @@ public:
     template <class... Args>
     Err EmplaceBack(Args&&... args)
     {
-        ListNode<T>* storage = ReboundAlloc().Alloc(1);
+        ::rad::detail::ListNode<T>* storage = ReboundAlloc().Alloc(1);
         if (storage == nullptr)
         {
             return Error::NoMemory;
         }
         // forward to placement new
-        ListNode<T>* new_node =
-            new (storage) ListNode<T>(static_cast<Args&&>(args)...);
+        ::rad::detail::ListNode<T>* new_node = new (
+            storage)::rad::detail::ListNode<T>(static_cast<Args&&>(args)...);
         // attach the new node before the end node.
         m_storage.Second().AttachNewNode(&m_storage.Second().m_head, new_node);
 
@@ -660,14 +665,14 @@ public:
     template <class... Args>
     RAD_NODISCARD Iterator Emplace(ConstIterator position, Args&&... args)
     {
-        ListNode<T>* storage = ReboundAlloc().Alloc(1);
+        ::rad::detail::ListNode<T>* storage = ReboundAlloc().Alloc(1);
         if (storage == nullptr)
         {
             return Iterator(&m_storage.Second().m_head);
         }
         // forward to placement new
-        ListNode<T>* new_node =
-            new (storage) ListNode<T>(static_cast<Args&&>(args)...);
+        ::rad::detail::ListNode<T>* new_node = new (
+            storage)::rad::detail::ListNode<T>(static_cast<Args&&>(args)...);
         // insert the new node before the end node.
         m_storage.Second().AttachNewNode(&position.m_node, new_node);
 
@@ -713,10 +718,11 @@ public:
 
     void Clear() noexcept
     {
-        ListBasicNode* cur = m_storage.Second().m_head.m_next;
+        ::rad::detail::ListBasicNode* cur = m_storage.Second().m_head.m_next;
         while (cur != &m_storage.Second().m_head)
         {
-            ListNode<T>* typed = static_cast<ListNode<T>*>(cur);
+            ::rad::detail::ListNode<T>* typed =
+                static_cast<::rad::detail::ListNode<T>*>(cur);
             cur = cur->m_next; // TODO suppress C6001 uninit memory warning?
 
             typed->~ListNode();
@@ -750,7 +756,7 @@ private:
         return m_storage.First();
     }
 
-    EmptyOptimizedPair<TAllocator, ListUntyped> m_storage;
+    EmptyOptimizedPair<TAllocator, ::rad::detail::ListUntyped> m_storage;
 };
 
 } // namespace rad
