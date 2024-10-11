@@ -24,14 +24,6 @@
 #include <initializer_list> // TODO
 #endif                      // RAD_ENABLE_STD
 
-#if _MSC_VER >= 1929 // VS2019 v16.10 and later
-// C4848: msvc::no_unique_address in C++17 and earlier is a vendor extension
-#define RAD_NO_UNIQUE_ADDRESS                                                  \
-    _Pragma("warning(suppress : 4848)") [[msvc::no_unique_address]]
-#else
-#define RAD_NO_UNIQUE_ADDRESS [[no_unique_address]]
-#endif
-
 namespace rad
 {
 
