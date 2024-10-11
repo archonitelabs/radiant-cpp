@@ -17,6 +17,7 @@
 #include "radiant/TotallyRad.h"
 #include "radiant/Memory.h"
 #include "radiant/EmptyOptimizedPair.h"
+#include "radiant/Res.h"
 
 #if RAD_ENABLE_STD
 #include <iterator>         // TODO
@@ -319,7 +320,7 @@ public:
     List_untyped& operator=(_Inout_ List_untyped&& x) noexcept;
 
     // [list.capacity], capacity
-    _Check_return_ bool empty() const noexcept
+    RAD_NODISCARD bool empty() const noexcept
     {
         return m_head.m_next == &m_head;
     }
@@ -328,7 +329,7 @@ public:
     // assume it is cheap and make things accidentally
     // quadratic.  Too useful in test code to omit
     // entirely.
-    _Check_return_ size_t expensive_size() const noexcept
+    RAD_NODISCARD size_t expensive_size() const noexcept
     {
         size_t count = 0;
         const List_basic_node* cur = &m_head;
@@ -347,7 +348,7 @@ public:
         x.m_head.fixup_head_swap(m_head);
     }
 
-    void insert_new_node(_Inout_ List_basic_node* pos,
+    void attach_new_node(_Inout_ List_basic_node* pos,
                          _Inout_ List_basic_node* i)
     {
         RAD_ASSERT(i->m_next == i);
@@ -390,7 +391,7 @@ public:
     @details Deviations from std::list:
 
     The container isn't copiable using the copy constructor or copy assignment.
-   This is because there is no way to indicate failure in these cases.  Move
+    This is because there is no way to indicate failure in these cases.  Move
     construction and move assignment work fine, and are guaranteed noexcept. Use
     assign_range if you need a deep copy.
 
@@ -398,14 +399,14 @@ public:
     difficulties when exceptions aren't available.
 
     The allocator returns nullptr on failure, rather than throws an exception.
-   That error is propogated.  Allocators are always propagated. "Fancy pointers"
-   aren't supported, as the allocators used aren't std allocators.  So you won't
-   be able to use some offset based pointer to do shared memory things with this
-   container.
+    That error is propogated.  Allocators are always propagated. "Fancy
+   pointers" aren't supported, as the allocators used aren't std allocators.  So
+   you won't be able to use some offset based pointer to do shared memory things
+   with this container.
 
     Reverse iterators aren't currently supported, though there isn't any reason
-   that they couldn't be supported.  The return on investment isn't currently
-   there. Same story for unique, merge, and sort.
+    that they couldn't be supported.  The return on investment isn't currently
+    there. Same story for unique, merge, and sort.
 
     Removed size() related functions, as making size() O(1) interferes with
     efficient splicing, and having size() be O(N) is too much of a foot gun. The
@@ -413,32 +414,32 @@ public:
     expensive_size() exists largely for test code.
 
     The assign functions now all return NTSTATUS to signal errors.  The count
-   and initializer_list overloads of assign were renamed to assign_count and
+    and initializer_list overloads of assign were renamed to assign_count and
     assign_initializer_list to minimize overloading
 
     Renamed remove and remove_if to erase_value and erase_if, as the "remove"
-   names are mistakes in the standard.  "remove" usually refers to algorithms
-   that move unwanted elements out of the way, but don't change the size of the
-   container. "erase" will get rid of unwanted elements and change the container
-   size.
+    names are mistakes in the standard.  "remove" usually refers to algorithms
+    that move unwanted elements out of the way, but don't change the size of the
+    container. "erase" will get rid of unwanted elements and change the
+   container size.
 
     Renamed iterator overloads of "erase" to "erase_one" and "erase_some" to
-   better capture caller intent.  There's a common bug where devs call
+    better capture caller intent.  There's a common bug where devs call
     `erase(range_begin)` when they meant to call `erase(range_begin,
-   range_end)`, and splitting the "erase" overload set into two names eliminates
-   that bug.
+    range_end)`, and splitting the "erase" overload set into two names
+   eliminates that bug.
 
     No Constructor Template Argument Deduction(CTAD), because that all requires
     constructors that will do some initial population of the container, and we
-   don't have those constructors since we can't signal errors out of
-   constructors.
+    don't have those constructors since we can't signal errors out of
+    constructors.
 
     The splice family of functions were renamed to splice_all, splice_one, and
     splice_some, to better make their intent clear to readers without needing to
     carefully count the number of parameters.
 
     TODO: implementation, doxygen, formatting, use Res / Result instead of
-   NTSTATUS
+    NTSTATUS
 
     @tparam T - Value type held by the list
     @tparam TAllocator - Allocator to use.
@@ -460,8 +461,10 @@ public:
     using iterator = List_iterator<T>;
     using const_iterator = List_const_iterator<T>;
 
+    using Rebound = typename TAllocator::template Rebind<List_node<T>>::Other;
+
     List()
-        : List(TAllocator{}){};
+        : List(TAllocator{}) {};
 
     explicit List(_In_ const TAllocator& alloc)
         : m_alloc(alloc)
@@ -490,28 +493,29 @@ public:
     }
 
     template <class InputIterator>
-    _Check_return_ NTSTATUS assign_some(InputIterator first, InputIterator last)
+    Err assign_some(InputIterator first, InputIterator last)
     {
         List local(m_alloc);
         for (; first != last; ++first)
         {
-            NTSTATUS err = local.emplace_back(*first);
-            if (err != STATUS_SUCCESS)
+            Err res = local.emplace_back(*first);
+            if (res.IsErr())
             {
-                return err;
+                return res;
             }
         }
         // using m_list swap so that we don't need to swap allocators
         m_list.swap(local.m_list);
+        return EmptyOkType{};
     }
 
     template <typename InputRange>
-    _Check_return_ NTSTATUS assign_range(InputRange&& rg);
+    Err assign_range(InputRange&& rg);
 
-    _Check_return_ NTSTATUS assign_count(size_type n, _In_ const T& t);
+    Err assign_count(size_type n, _In_ const T& t);
 
 #if RAD_ENABLE_STD
-    _Check_return_ NTSTATUS assign(std::initializer_list<T> il);
+    Err assign(std::initializer_list<T> il);
 #endif
 
     allocator_type get_allocator() const noexcept
@@ -520,38 +524,38 @@ public:
     }
 
     // iterators
-    _Check_return_ iterator begin() noexcept
+    RAD_NODISCARD iterator begin() noexcept
     {
         return iterator(m_list.m_head.m_next);
     }
 
-    _Check_return_ const_iterator begin() const noexcept
+    RAD_NODISCARD const_iterator begin() const noexcept
     {
         return const_iterator(m_list.m_head.m_next);
     }
 
-    _Check_return_ iterator end() noexcept
+    RAD_NODISCARD iterator end() noexcept
     {
         return iterator(&m_list.m_head);
     }
 
-    _Check_return_ const_iterator end() const noexcept
+    RAD_NODISCARD const_iterator end() const noexcept
     {
         return const_iterator(&m_list.m_head);
     }
 
-    _Check_return_ const_iterator cbegin() const noexcept
+    RAD_NODISCARD const_iterator cbegin() const noexcept
     {
         return const_iterator(m_list.m_head.m_next);
     }
 
-    _Check_return_ const_iterator cend() const noexcept
+    RAD_NODISCARD const_iterator cend() const noexcept
     {
         return const_iterator(&m_list.m_head);
     }
 
     // [list.capacity], capacity
-    _Check_return_ bool empty() const noexcept
+    RAD_NODISCARD bool empty() const noexcept
     {
         // debug perf optimization:  Duplicate "empty"
         // implementation, rather than forward the call down
@@ -563,7 +567,7 @@ public:
     // assume it is cheap and make things accidentally
     // quadratic.  Too useful in test code to omit
     // entirely.
-    _Check_return_ size_t expensive_size() const noexcept
+    RAD_NODISCARD size_t expensive_size() const noexcept
     {
         return m_list.expensive_size();
     }
@@ -585,48 +589,48 @@ public:
 
     // [list.modifiers], modifiers
     template <class... Args>
-    _Check_return_ NTSTATUS emplace_front(Args&&... args);
+    Err emplace_front(Args&&... args);
 
     template <class... Args>
-    _Check_return_ NTSTATUS emplace_back(Args&&... args)
+    Err emplace_back(Args&&... args)
     {
-        void* storage = m_alloc.Allocate(sizeof(List_node<T>));
+        List_node<T>* storage = rebound_alloc().Alloc(1);
         if (storage == nullptr)
         {
-            return STATUS_NO_MEMORY;
+            return Error::NoMemory;
         }
         // forward to placement new
         List_node<T>* new_node =
             new (storage) List_node<T>(static_cast<Args&&>(args)...);
-        // insert the new node before the end node.
-        m_list.insert_new_node(&m_list.m_head, new_node);
+        // attach the new node before the end node.
+        m_list.attach_new_node(&m_list.m_head, new_node);
 
-        return STATUS_SUCCESS;
+        return EmptyOkType{};
     }
 
-    _Check_return_ NTSTATUS push_front(_In_ const T& x);
-    _Check_return_ NTSTATUS push_front(_Inout_ T&& x);
+    Err push_front(_In_ const T& x);
+    Err push_front(_Inout_ T&& x);
 
     template <typename InputRange>
-    _Check_return_ NTSTATUS prepend_range(InputRange&& rg);
+    Err prepend_range(InputRange&& rg);
 
     // Calling pop_front while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
     // release mode we will instead do nothing.
     void pop_front();
 
-    _Check_return_ NTSTATUS push_back(_In_ const T& x)
+    Err push_back(_In_ const T& x)
     {
         return emplace_back(x);
     }
 
-    _Check_return_ NTSTATUS push_back(_Inout_ T&& x)
+    Err push_back(_Inout_ T&& x)
     {
         return emplace_back(static_cast<T&&>(x));
     }
 
     template <typename InputRange>
-    _Check_return_ NTSTATUS append_range(InputRange&& rg);
+    Err append_range(InputRange&& rg);
 
     // Calling pop_back while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
@@ -639,9 +643,9 @@ public:
     // changing the container, invalidating iterators, or invalidating
     // references.
     template <class... Args>
-    _Check_return_ iterator emplace(const_iterator position, Args&&... args)
+    RAD_NODISCARD iterator emplace(const_iterator position, Args&&... args)
     {
-        void* storage = m_alloc.Allocate(sizeof(List_node<T>));
+        List_node<T>* storage = rebound_alloc().Alloc(1);
         if (storage == nullptr)
         {
             return iterator(&m_list.m_head);
@@ -650,30 +654,30 @@ public:
         List_node<T>* new_node =
             new (storage) List_node<T>(static_cast<Args&&>(args)...);
         // insert the new node before the end node.
-        m_list.insert_new_node(&position.m_node, new_node);
+        m_list.attach_new_node(&position.m_node, new_node);
 
         return iterator(new_node);
     }
 
-    _Check_return_ iterator insert(const_iterator position, _In_ const T& x);
-    _Check_return_ iterator insert(const_iterator position, _Inout_ T&& x);
+    RAD_NODISCARD iterator insert(const_iterator position, _In_ const T& x);
+    RAD_NODISCARD iterator insert(const_iterator position, _Inout_ T&& x);
 
-    _Check_return_ iterator insert_count(const_iterator position,
-                                         size_type n,
-                                         _In_ const T& x);
+    RAD_NODISCARD iterator insert_count(const_iterator position,
+                                        size_type n,
+                                        _In_ const T& x);
 
     template <class InputIterator>
-    _Check_return_ iterator insert_some(const_iterator position,
-                                        InputIterator first,
-                                        InputIterator last);
+    RAD_NODISCARD iterator insert_some(const_iterator position,
+                                       InputIterator first,
+                                       InputIterator last);
 
     template <typename InputRange>
-    _Check_return_ iterator insert_range(const_iterator position,
-                                         InputRange&& rg);
+    RAD_NODISCARD iterator insert_range(const_iterator position,
+                                        InputRange&& rg);
 
 #if RAD_ENABLE_STD
-    _Check_return_ iterator insert_initializer_list(
-        const_iterator position, std::initializer_list<T> il);
+    RAD_NODISCARD iterator insert_initializer_list(const_iterator position,
+                                                   std::initializer_list<T> il);
 #endif
 
     iterator erase_one(const_iterator position);
@@ -686,7 +690,7 @@ public:
     void swap(_Inout_ List& x) noexcept
     {
         {
-            Allocator temp = m_alloc;
+            TAllocator temp = m_alloc;
             m_alloc = x.m_alloc;
             x.m_alloc = temp;
         }
@@ -702,7 +706,7 @@ public:
             cur = cur->m_next; // TODO suppress C6001 uninit memory warning?
 
             typed->~List_node();
-            m_alloc.Free(typed);
+            rebound_alloc().Free(typed);
         }
         m_list.m_head.unlink();
     }
@@ -728,6 +732,11 @@ public:
     void reverse() noexcept;
 
 private:
+
+    Rebound rebound_alloc()
+    {
+        return m_alloc;
+    }
 
     List_untyped m_list;
     RAD_NO_UNIQUE_ADDRESS TAllocator m_alloc;
