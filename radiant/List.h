@@ -31,34 +31,34 @@ template <typename T, typename TAllocator RAD_ALLOCATOR_EQ(T)>
 class List;
 
 template <typename T>
-class List_const_iterator;
+class ListConstIterator;
 
-class List_basic_node
+class ListBasicNode
 {
 public:
 
-    List_basic_node() = default;
-    ~List_basic_node() = default;
+    ListBasicNode() = default;
+    ~ListBasicNode() = default;
 
     // immovable
-    List_basic_node(const List_basic_node&) = delete;
-    List_basic_node(List_basic_node&&) = delete;
-    List_basic_node& operator=(const List_basic_node&) = delete;
-    List_basic_node& operator=(List_basic_node&&) = delete;
+    ListBasicNode(const ListBasicNode&) = delete;
+    ListBasicNode(ListBasicNode&&) = delete;
+    ListBasicNode& operator=(const ListBasicNode&) = delete;
+    ListBasicNode& operator=(ListBasicNode&&) = delete;
 
-    void unlink()
+    void Unlink()
     {
         m_prev = m_next = this;
     }
 
-    void fixup_head_swap(_In_ const List_basic_node& old_head) noexcept
+    void FixupHeadSwap(_In_ const ListBasicNode& old_head) noexcept
     {
         if (m_next == &old_head)
         {
             // This used to be an empty head, but now it
             // looks like the old head is the first element
             // in our list.  unlink to reestablish emptiness.
-            unlink();
+            Unlink();
         }
         else
         {
@@ -72,7 +72,7 @@ public:
         }
     }
 
-    void check_sanity_before_relinking() const noexcept
+    void CheckSanityBeforeRelinking() const noexcept
     {
         // TODO: turn the asserts into fast fails.
         // if they fire, it indicates a heap overflow,
@@ -81,9 +81,9 @@ public:
         RAD_ASSERT(m_prev->m_next == this);
     }
 
-    void swap(_Inout_ List_basic_node& x) noexcept
+    void Swap(_Inout_ ListBasicNode& x) noexcept
     {
-        List_basic_node* temp = m_next;
+        ListBasicNode* temp = m_next;
         m_next = x.m_next;
         x.m_next = temp;
 
@@ -92,43 +92,43 @@ public:
         x.m_prev = temp;
     }
 
-    void assert_on_empty() const noexcept
+    void AssertOnEmpty() const noexcept
     {
         // TODO: turn the assert into fast fail.
         RAD_ASSERT(m_next != this);
     }
 
-    List_basic_node* m_next = this;
-    List_basic_node* m_prev = this;
+    ListBasicNode* m_next = this;
+    ListBasicNode* m_prev = this;
 };
 
 template <typename T>
-class List_node : public List_basic_node
+class ListNode : public ListBasicNode
 {
 public:
 
-    List_node() = default;
-    ~List_node() = default;
+    ListNode() = default;
+    ~ListNode() = default;
 
-    // used by emplace
+    // used by Emplace
     template <class... Args>
-    explicit List_node(Args&&... args)
-        : List_basic_node(),
+    explicit ListNode(Args&&... args)
+        : ListBasicNode(),
           m_elt(static_cast<Args&&>(args)...)
     {
     }
 
     // immovable
-    List_node(const List_node&) = delete;
-    List_node(List_node&&) = delete;
-    List_node& operator=(const List_node&) = delete;
-    List_node& operator=(List_node&&) = delete;
+    ListNode(const ListNode&) = delete;
+    ListNode(ListNode&&) = delete;
+    ListNode& operator=(const ListNode&) = delete;
+    ListNode& operator=(ListNode&&) = delete;
 
     T m_elt;
 };
 
 template <typename T>
-class List_iterator
+class ListIterator
 {
 public:
 
@@ -136,84 +136,84 @@ public:
     using iterator_category = std::bidirectional_iterator_tag;
 #endif
 
-    using value_type = T;
-    using difference_type = ptrdiff_t;
-    using pointer = T*;
-    using reference = T&;
+    using ValueType = T;
+    using DifferenceType = ptrdiff_t;
+    using Pointer = T*;
+    using Reference = T&;
 
-    List_iterator() = default;
+    ListIterator() = default;
 
-    explicit List_iterator(List_basic_node* node)
+    explicit ListIterator(ListBasicNode* node)
         : m_node(node)
     {
     }
 
-    List_iterator(const List_iterator&) = default;
-    List_iterator(List_iterator&&) = default;
-    List_iterator& operator=(const List_iterator&) = default;
-    List_iterator& operator=(List_iterator&&) = default;
-    ~List_iterator() = default;
+    ListIterator(const ListIterator&) = default;
+    ListIterator(ListIterator&&) = default;
+    ListIterator& operator=(const ListIterator&) = default;
+    ListIterator& operator=(ListIterator&&) = default;
+    ~ListIterator() = default;
 
-    bool operator==(List_iterator rhs) const noexcept
+    bool operator==(ListIterator rhs) const noexcept
     {
         return m_node == rhs.m_node;
     }
 
-    bool operator!=(List_iterator rhs) const noexcept
+    bool operator!=(ListIterator rhs) const noexcept
     {
         return m_node != rhs.m_node;
     }
 
-    reference operator*() const noexcept
+    Reference operator*() const noexcept
     {
-        m_node->assert_on_empty();
-        return static_cast<List_node<T>*>(m_node)->m_elt;
+        m_node->AssertOnEmpty();
+        return static_cast<ListNode<T>*>(m_node)->m_elt;
     }
 
-    pointer operator->() const noexcept
+    Pointer operator->() const noexcept
     {
-        m_node->assert_on_empty();
-        return &static_cast<List_node<T>*>(m_node)->m_elt;
+        m_node->AssertOnEmpty();
+        return &static_cast<ListNode<T>*>(m_node)->m_elt;
     }
 
-    List_iterator& operator++() noexcept
+    ListIterator& operator++() noexcept
     {
         m_node = m_node->m_next;
         return *this;
     }
 
-    List_iterator operator++(int) noexcept
+    ListIterator operator++(int) noexcept
     {
-        List_iterator retval(m_node);
+        ListIterator retval(m_node);
         m_node = m_node->m_next;
         return retval;
     }
 
-    List_iterator& operator--() noexcept
+    ListIterator& operator--() noexcept
     {
         m_node = m_node->m_prev;
         return *this;
     }
 
-    List_iterator operator--(int) noexcept
+    ListIterator operator--(int) noexcept
     {
-        List_iterator retval(m_node);
+        ListIterator retval(m_node);
         m_node = m_node->m_prev;
         return *this;
     }
 
 private:
 
-    List_basic_node* m_node = nullptr;
+    ListBasicNode* m_node = nullptr;
 
     template <typename U, typename TAllocator>
     friend class List;
 
-    friend class List_const_iterator<T>;
+    friend class ListConstIterator<T>;
 };
 
 template <typename T>
-class List_const_iterator
+class ListConstIterator
 {
 public:
 
@@ -221,103 +221,103 @@ public:
     using iterator_category = std::bidirectional_iterator_tag;
 #endif
 
-    using value_type = const T;
-    using difference_type = ptrdiff_t;
-    using pointer = const T*;
-    using reference = const T&;
+    using ValueType = const T;
+    using DifferenceType = ptrdiff_t;
+    using Pointer = const T*;
+    using Reference = const T&;
 
-    List_const_iterator() = default;
+    ListConstIterator() = default;
 
-    explicit List_const_iterator(const List_basic_node* node)
+    explicit ListConstIterator(const ListBasicNode* node)
         : m_node(node)
     {
     }
 
-    List_const_iterator(const List_const_iterator&) = default;
-    List_const_iterator(List_const_iterator&&) = default;
+    ListConstIterator(const ListConstIterator&) = default;
+    ListConstIterator(ListConstIterator&&) = default;
 
-    List_const_iterator& operator=(const List_const_iterator&) = default;
-    List_const_iterator& operator=(List_const_iterator&&) = default;
+    ListConstIterator& operator=(const ListConstIterator&) = default;
+    ListConstIterator& operator=(ListConstIterator&&) = default;
 
-    ~List_const_iterator() = default;
+    ~ListConstIterator() = default;
 
-    /* implicit */ List_const_iterator(List_iterator<T> other) noexcept
+    /* implicit */ ListConstIterator(ListIterator<T> other) noexcept
         : m_node(other.m_node)
     {
     }
 
-    bool operator==(List_const_iterator rhs) const noexcept
+    bool operator==(ListConstIterator rhs) const noexcept
     {
         return m_node == rhs.m_node;
     }
 
-    bool operator!=(List_const_iterator rhs) const noexcept
+    bool operator!=(ListConstIterator rhs) const noexcept
     {
         return m_node != rhs.m_node;
     }
 
-    reference operator*() const noexcept
+    Reference operator*() const noexcept
     {
-        m_node->assert_on_empty();
-        return static_cast<const List_node<T>*>(m_node)->m_elt;
+        m_node->AssertOnEmpty();
+        return static_cast<const ListNode<T>*>(m_node)->m_elt;
     }
 
-    pointer operator->() const noexcept
+    Pointer operator->() const noexcept
     {
-        m_node->assert_on_empty();
-        return &static_cast<const List_node<T>*>(m_node)->m_elt;
+        m_node->AssertOnEmpty();
+        return &static_cast<const ListNode<T>*>(m_node)->m_elt;
     }
 
-    List_const_iterator& operator++() noexcept
+    ListConstIterator& operator++() noexcept
     {
         m_node = m_node->m_next;
         return *this;
     }
 
-    List_const_iterator operator++(int) noexcept
+    ListConstIterator operator++(int) noexcept
     {
-        List_const_iterator retval(m_node);
+        ListConstIterator retval(m_node);
         m_node = m_node->m_next;
         return retval;
     }
 
-    List_const_iterator& operator--() noexcept
+    ListConstIterator& operator--() noexcept
     {
         m_node = m_node->m_prev;
         return *this;
     }
 
-    List_const_iterator operator--(int) noexcept
+    ListConstIterator operator--(int) noexcept
     {
-        List_const_iterator retval(m_node);
+        ListConstIterator retval(m_node);
         m_node = m_node->m_prev;
         return *this;
     }
 
 private:
 
-    const List_basic_node* m_node = nullptr;
+    const ListBasicNode* m_node = nullptr;
 
     template <typename U, typename TAllocator>
     friend class List;
 };
 
-class List_untyped
+class ListUntyped
 {
 public:
 
-    List_untyped() = default;
+    ListUntyped() = default;
 
-    List_untyped(_In_ const List_untyped& x) = delete;
+    ListUntyped(_In_ const ListUntyped& x) = delete;
 
-    List_untyped(_Inout_ List_untyped&& x) noexcept = delete;
+    ListUntyped(_Inout_ ListUntyped&& x) noexcept = delete;
 
-    ~List_untyped() = default;
-    List_untyped& operator=(_In_ const List_untyped& x) = delete;
-    List_untyped& operator=(_Inout_ List_untyped&& x) noexcept = delete;
+    ~ListUntyped() = default;
+    ListUntyped& operator=(_In_ const ListUntyped& x) = delete;
+    ListUntyped& operator=(_Inout_ ListUntyped&& x) noexcept = delete;
 
     // [list.capacity], capacity
-    RAD_NODISCARD bool empty() const noexcept
+    RAD_NODISCARD bool Empty() const noexcept
     {
         return m_head.m_next == &m_head;
     }
@@ -326,10 +326,10 @@ public:
     // assume it is cheap and make things accidentally
     // quadratic.  Too useful in test code to omit
     // entirely.
-    RAD_NODISCARD size_t expensive_size() const noexcept
+    RAD_NODISCARD size_t ExpensiveSize() const noexcept
     {
         size_t count = 0;
-        const List_basic_node* cur = &m_head;
+        const ListBasicNode* cur = &m_head;
         while (cur->m_next != &m_head)
         {
             cur = cur->m_next;
@@ -338,47 +338,46 @@ public:
         return count;
     }
 
-    void swap(_Inout_ List_untyped& x) noexcept
+    void Swap(_Inout_ ListUntyped& x) noexcept
     {
-        m_head.swap(x.m_head);
-        m_head.fixup_head_swap(x.m_head);
-        x.m_head.fixup_head_swap(m_head);
+        m_head.Swap(x.m_head);
+        m_head.FixupHeadSwap(x.m_head);
+        x.m_head.FixupHeadSwap(m_head);
     }
 
-    void attach_new_node(_Inout_ List_basic_node* pos,
-                         _Inout_ List_basic_node* i)
+    void AttachNewNode(_Inout_ ListBasicNode* pos, _Inout_ ListBasicNode* i)
     {
         RAD_ASSERT(i->m_next == i);
         RAD_ASSERT(i->m_prev == i);
         i->m_next = pos;
         i->m_prev = pos->m_prev;
 
-        pos->check_sanity_before_relinking();
+        pos->CheckSanityBeforeRelinking();
         pos->m_prev->m_next = i;
         pos->m_prev = i;
     }
 
-    void splice_one(_Inout_ List_basic_node* pos, _Inout_ List_basic_node* i)
+    void SpliceOne(_Inout_ ListBasicNode* pos, _Inout_ ListBasicNode* i)
     {
-        i->check_sanity_before_relinking();
+        i->CheckSanityBeforeRelinking();
         i->m_next->m_prev = i->m_prev;
         i->m_prev->m_next = i->m_next;
 
         i->m_next = pos;
         i->m_prev = pos->m_prev;
 
-        pos->check_sanity_before_relinking();
+        pos->CheckSanityBeforeRelinking();
         pos->m_prev->m_next = i;
         pos->m_prev = i;
     }
 
-    void splice_some(_Inout_ List_basic_node* position,
-                     _Inout_ List_basic_node* first,
-                     _Inout_ List_basic_node* last);
+    void SpliceSome(_Inout_ ListBasicNode* position,
+                    _Inout_ ListBasicNode* first,
+                    _Inout_ ListBasicNode* last);
 
-    void reverse() noexcept;
+    void Reverse() noexcept;
 
-    List_basic_node m_head;
+    ListBasicNode m_head;
 };
 
 /*!
@@ -390,16 +389,16 @@ public:
     The container isn't copiable using the copy constructor or copy assignment.
     This is because there is no way to indicate failure in these cases.  Move
     construction and move assignment work fine, and are guaranteed noexcept. Use
-    assign_range if you need a deep copy.
+    AssignRange if you need a deep copy.
 
     The set of constructors has been greatly reduced, due to error handling
     difficulties when exceptions aren't available.
 
     The allocator returns nullptr on failure, rather than throws an exception.
     That error is propogated.  Allocators are always propagated. "Fancy
-   pointers" aren't supported, as the allocators used aren't std allocators.  So
-   you won't be able to use some offset based pointer to do shared memory things
-   with this container.
+    pointers" aren't supported, as the allocators used aren't std allocators. So
+    you won't be able to use some offset based pointer to do shared memory
+    things with this container.
 
     Reverse iterators aren't currently supported, though there isn't any reason
     that they couldn't be supported.  The return on investment isn't currently
@@ -407,32 +406,32 @@ public:
 
     Removed size() related functions, as making size() O(1) interferes with
     efficient splicing, and having size() be O(N) is too much of a foot gun. The
-    standard made a mistake here.  empty() is still present and fine, and
-    expensive_size() exists largely for test code.
+    standard made a mistake here.  Empty() is still present and fine, and
+    ExpensiveSize() exists largely for test code.
 
-    The assign functions now all return NTSTATUS to signal errors.  The count
-    and initializer_list overloads of assign were renamed to assign_count and
-    assign_initializer_list to minimize overloading
+    The Assign functions now all return Res to signal errors.  The count
+    and initializer_list overloads of Assign were renamed to AssignCount and
+    AssignInitializerList to minimize overloading
 
-    Renamed remove and remove_if to erase_value and erase_if, as the "remove"
+    Renamed remove and remove_if to EraseValue and EraseIf, as the "remove"
     names are mistakes in the standard.  "remove" usually refers to algorithms
     that move unwanted elements out of the way, but don't change the size of the
     container. "erase" will get rid of unwanted elements and change the
-   container size.
+    container size.
 
-    Renamed iterator overloads of "erase" to "erase_one" and "erase_some" to
+    Renamed iterator overloads of "erase" to "EraseOne" and "EraseSome" to
     better capture caller intent.  There's a common bug where devs call
     `erase(range_begin)` when they meant to call `erase(range_begin,
     range_end)`, and splitting the "erase" overload set into two names
-   eliminates that bug.
+    eliminates that bug.
 
     No Constructor Template Argument Deduction(CTAD), because that all requires
     constructors that will do some initial population of the container, and we
     don't have those constructors since we can't signal errors out of
     constructors.
 
-    The splice family of functions were renamed to splice_all, splice_one, and
-    splice_some, to better make their intent clear to readers without needing to
+    The splice family of functions were renamed to SpliceAll, SpliceOne, and
+    SpliceSome, to better make their intent clear to readers without needing to
     carefully count the number of parameters.
 
     TODO: implementation, doxygen, formatting, use Res / Result instead of
@@ -447,18 +446,18 @@ class List
 public:
 
     // types
-    using value_type = T;
-    using allocator_type = TAllocator;
-    using pointer = T*;
-    using const_pointer = const T*;
-    using reference = value_type&;
-    using const_reference = const value_type&;
-    using size_type = size_t;
-    using difference_type = ptrdiff_t;
-    using iterator = List_iterator<T>;
-    using const_iterator = List_const_iterator<T>;
+    using ValueType = T;
+    using AllocatorType = TAllocator;
+    using Pointer = T*;
+    using ConstPointer = const T*;
+    using Reference = ValueType&;
+    using ConstReference = const ValueType&;
+    using SizeType = size_t;
+    using DifferenceType = ptrdiff_t;
+    using Iterator = ListIterator<T>;
+    using ConstIterator = ListConstIterator<T>;
 
-    using Rebound = typename TAllocator::template Rebind<List_node<T>>::Other;
+    using Rebound = typename TAllocator::template Rebind<ListNode<T>>::Other;
 
     List() = default;
 
@@ -471,89 +470,109 @@ public:
 
     List(_Inout_ List&& x) noexcept
     {
-        swap(x);
+        Swap(x);
     }
 
     ~List()
     {
-        clear();
+        Clear();
     }
 
     List& operator=(_In_ const List& x) = delete;
 
     List& operator=(_Inout_ List&& x) noexcept
     {
-        clear();
-        swap(x);
+        Clear();
+        Swap(x);
         return *this;
     }
 
     template <class InputIterator>
-    Err assign_some(InputIterator first, InputIterator last)
+    Err AssignSome(InputIterator first, InputIterator last)
     {
         List local(m_storage.First());
         for (; first != last; ++first)
         {
-            Err res = local.emplace_back(*first);
+            Err res = local.EmplaceBack(*first);
             if (res.IsErr())
             {
                 return res;
             }
         }
-        // using m_list swap so that we don't need to swap allocators
-        m_storage.Second().swap(local.m_storage.Second());
+        // using m_list Swap so that we don't need to swap allocators
+        m_storage.Second().Swap(local.m_storage.Second());
         return EmptyOkType{};
     }
 
     template <typename InputRange>
-    Err assign_range(InputRange&& rg);
+    Err AssignRange(InputRange&& rg)
+    {
+        return AssignSome(rg.begin(), rg.end());
+    }
 
-    Err assign_count(size_type n, _In_ const T& t);
+    Err AssignCount(SizeType n, _In_ const T& t)
+    {
+        List local(m_storage.First());
+        for (SizeType i = 0; i < n; ++i)
+        {
+            Err res = local.EmplaceBack(t);
+            if (res.IsErr())
+            {
+                return res;
+            }
+        }
+        // using m_list Swap so that we don't need to swap allocators
+        m_storage.Second().Swap(local.m_storage.Second());
+        return EmptyOkType{};
+    }
 
 #if RAD_ENABLE_STD
-    Err assign(std::initializer_list<T> il);
+    Err AssignInitializerList(std::initializer_list<T> il)
+    {
+        return AssignSome(il.begin(), il.end());
+    }
 #endif
 
-    allocator_type get_allocator() const noexcept
+    AllocatorType GetAllocator() const noexcept
     {
         return m_storage.First();
     }
 
     // iterators
-    RAD_NODISCARD iterator begin() noexcept
+    RAD_NODISCARD Iterator begin() noexcept
     {
-        return iterator(m_storage.Second().m_head.m_next);
+        return Iterator(m_storage.Second().m_head.m_next);
     }
 
-    RAD_NODISCARD const_iterator begin() const noexcept
+    RAD_NODISCARD ConstIterator begin() const noexcept
     {
-        return const_iterator(m_storage.Second().m_head.m_next);
+        return ConstIterator(m_storage.Second().m_head.m_next);
     }
 
-    RAD_NODISCARD iterator end() noexcept
+    RAD_NODISCARD Iterator end() noexcept
     {
-        return iterator(&m_storage.Second().m_head);
+        return Iterator(&m_storage.Second().m_head);
     }
 
-    RAD_NODISCARD const_iterator end() const noexcept
+    RAD_NODISCARD ConstIterator end() const noexcept
     {
-        return const_iterator(&m_storage.Second().m_head);
+        return ConstIterator(&m_storage.Second().m_head);
     }
 
-    RAD_NODISCARD const_iterator cbegin() const noexcept
+    RAD_NODISCARD ConstIterator cbegin() const noexcept
     {
-        return const_iterator(m_storage.Second().m_head.m_next);
+        return ConstIterator(m_storage.Second().m_head.m_next);
     }
 
-    RAD_NODISCARD const_iterator cend() const noexcept
+    RAD_NODISCARD ConstIterator cend() const noexcept
     {
-        return const_iterator(&m_storage.Second().m_head);
+        return ConstIterator(&m_storage.Second().m_head);
     }
 
     // [list.capacity], capacity
-    RAD_NODISCARD bool empty() const noexcept
+    RAD_NODISCARD bool Empty() const noexcept
     {
-        // debug perf optimization:  Duplicate "empty"
+        // debug perf optimization:  Duplicate "Empty"
         // implementation, rather than forward the call down
         // three levels.
         return m_storage.Second().m_head.m_next == &m_storage.Second().m_head;
@@ -563,9 +582,9 @@ public:
     // assume it is cheap and make things accidentally
     // quadratic.  Too useful in test code to omit
     // entirely.
-    RAD_NODISCARD size_t expensive_size() const noexcept
+    RAD_NODISCARD size_t ExpensiveSize() const noexcept
     {
-        return m_storage.Second().expensive_size();
+        return m_storage.Second().ExpensiveSize();
     }
 
     // element access: TODO error handling on these
@@ -578,164 +597,160 @@ public:
     // pattern matching to save the day, one day?
     // monadic / visitation APIs?
     // Deal with this later.  Maybe by having Res support reference types
-    // reference       front();
-    // const_reference front() const;
-    // reference       back();
-    // const_reference back() const;
+    // Reference      front();
+    // ConstReference front() const;
+    // Reference      back();
+    // ConstReference back() const;
 
     // [list.modifiers], modifiers
     template <class... Args>
-    Err emplace_front(Args&&... args);
+    Err EmplaceFront(Args&&... args);
 
     template <class... Args>
-    Err emplace_back(Args&&... args)
+    Err EmplaceBack(Args&&... args)
     {
-        List_node<T>* storage = rebound_alloc().Alloc(1);
+        ListNode<T>* storage = ReboundAlloc().Alloc(1);
         if (storage == nullptr)
         {
             return Error::NoMemory;
         }
         // forward to placement new
-        List_node<T>* new_node =
-            new (storage) List_node<T>(static_cast<Args&&>(args)...);
+        ListNode<T>* new_node =
+            new (storage) ListNode<T>(static_cast<Args&&>(args)...);
         // attach the new node before the end node.
-        m_storage.Second().attach_new_node(&m_storage.Second().m_head,
-                                           new_node);
+        m_storage.Second().AttachNewNode(&m_storage.Second().m_head, new_node);
 
         return EmptyOkType{};
     }
 
-    Err push_front(_In_ const T& x);
-    Err push_front(_Inout_ T&& x);
+    Err PushFront(_In_ const T& x);
+    Err PushFront(_Inout_ T&& x);
 
     template <typename InputRange>
-    Err prepend_range(InputRange&& rg);
+    Err PrependRange(InputRange&& rg);
 
-    // Calling pop_front while the container is empty is erroneous behavior.
+    // Calling PopFront while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
     // release mode we will instead do nothing.
-    void pop_front();
+    void PopFront();
 
-    Err push_back(_In_ const T& x)
+    Err PushBack(_In_ const T& x)
     {
-        return emplace_back(x);
+        return EmplaceBack(x);
     }
 
-    Err push_back(_Inout_ T&& x)
+    Err PushBack(_Inout_ T&& x)
     {
-        return emplace_back(static_cast<T&&>(x));
+        return EmplaceBack(static_cast<T&&>(x));
     }
 
     template <typename InputRange>
-    Err append_range(InputRange&& rg);
+    Err AppendRange(InputRange&& rg);
 
-    // Calling pop_back while the container is empty is erroneous behavior.
+    // Calling PopBack while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
     // release mode we will instead do nothing.
-    void pop_back();
+    void PopBack();
 
-    // insert and emplace functions return the end iterator on failure.
-    // The insert and emplace functions provide the strong error
+    // Insert and Emplace functions return the end iterator on failure.
+    // The Insert and Emplace functions provide the strong error
     // guarantee.  If they fail, then the function returns without
     // changing the container, invalidating iterators, or invalidating
     // references.
     template <class... Args>
-    RAD_NODISCARD iterator emplace(const_iterator position, Args&&... args)
+    RAD_NODISCARD Iterator Emplace(ConstIterator position, Args&&... args)
     {
-        List_node<T>* storage = rebound_alloc().Alloc(1);
+        ListNode<T>* storage = ReboundAlloc().Alloc(1);
         if (storage == nullptr)
         {
-            return iterator(&m_storage.Second().m_head);
+            return Iterator(&m_storage.Second().m_head);
         }
         // forward to placement new
-        List_node<T>* new_node =
-            new (storage) List_node<T>(static_cast<Args&&>(args)...);
+        ListNode<T>* new_node =
+            new (storage) ListNode<T>(static_cast<Args&&>(args)...);
         // insert the new node before the end node.
-        m_storage.Second().attach_new_node(&position.m_node, new_node);
+        m_storage.Second().AttachNewNode(&position.m_node, new_node);
 
-        return iterator(new_node);
+        return Iterator(new_node);
     }
 
-    RAD_NODISCARD iterator insert(const_iterator position, _In_ const T& x);
-    RAD_NODISCARD iterator insert(const_iterator position, _Inout_ T&& x);
+    RAD_NODISCARD Iterator Insert(ConstIterator position, _In_ const T& x);
+    RAD_NODISCARD Iterator Insert(ConstIterator position, _Inout_ T&& x);
 
-    RAD_NODISCARD iterator insert_count(const_iterator position,
-                                        size_type n,
-                                        _In_ const T& x);
+    RAD_NODISCARD Iterator InsertCount(ConstIterator position,
+                                       SizeType n,
+                                       _In_ const T& x);
 
     template <class InputIterator>
-    RAD_NODISCARD iterator insert_some(const_iterator position,
-                                       InputIterator first,
-                                       InputIterator last);
+    RAD_NODISCARD Iterator InsertSome(ConstIterator position,
+                                      InputIterator first,
+                                      InputIterator last);
 
     template <typename InputRange>
-    RAD_NODISCARD iterator insert_range(const_iterator position,
-                                        InputRange&& rg);
+    RAD_NODISCARD Iterator InsertRange(ConstIterator position, InputRange&& rg);
 
 #if RAD_ENABLE_STD
-    RAD_NODISCARD iterator insert_initializer_list(const_iterator position,
-                                                   std::initializer_list<T> il);
+    RAD_NODISCARD Iterator InsertInitializerList(ConstIterator position,
+                                                 std::initializer_list<T> il);
 #endif
 
-    iterator erase_one(const_iterator position);
-    iterator erase_some(const_iterator position, const_iterator last);
+    Iterator EraseOne(ConstIterator position);
+    Iterator EraseSome(ConstIterator position, ConstIterator last);
 
-    size_type erase_value(const T& value);
+    SizeType EraseValue(const T& value);
     template <typename Predicate>
-    size_type erase_if(Predicate pred);
+    SizeType EraseIf(Predicate pred);
 
-    void swap(_Inout_ List& x) noexcept
+    void Swap(_Inout_ List& x) noexcept
     {
         {
             TAllocator temp = m_storage.First();
             m_storage.First() = x.m_storage.First();
             x.m_storage.First() = temp;
         }
-        m_storage.Second().swap(x.m_storage.Second());
+        m_storage.Second().Swap(x.m_storage.Second());
     }
 
-    void clear() noexcept
+    void Clear() noexcept
     {
-        List_basic_node* cur = m_storage.Second().m_head.m_next;
+        ListBasicNode* cur = m_storage.Second().m_head.m_next;
         while (cur != &m_storage.Second().m_head)
         {
-            List_node<T>* typed = static_cast<List_node<T>*>(cur);
+            ListNode<T>* typed = static_cast<ListNode<T>*>(cur);
             cur = cur->m_next; // TODO suppress C6001 uninit memory warning?
 
-            typed->~List_node();
-            rebound_alloc().Free(typed);
+            typed->~ListNode();
+            ReboundAlloc().Free(typed);
         }
-        m_storage.Second().m_head.unlink();
+        m_storage.Second().m_head.Unlink();
     }
 
     // [list.ops], list operations
-    void splice_all(const_iterator position, _Inout_ List& x);
-    void splice_all(const_iterator position, _Inout_ List&& x);
+    void SpliceAll(ConstIterator position, _Inout_ List& x);
+    void SpliceAll(ConstIterator position, _Inout_ List&& x);
 
-    void splice_one(const_iterator position, _Inout_ List& x, const_iterator i);
-    void splice_one(const_iterator position,
+    void SpliceOne(ConstIterator position, _Inout_ List& x, ConstIterator i);
+    void SpliceOne(ConstIterator position, _Inout_ List&& x, ConstIterator i);
+
+    void SpliceSome(ConstIterator position,
+                    _Inout_ List& x,
+                    ConstIterator first,
+                    ConstIterator last);
+    void SpliceSome(ConstIterator position,
                     _Inout_ List&& x,
-                    const_iterator i);
+                    ConstIterator first,
+                    ConstIterator last);
 
-    void splice_some(const_iterator position,
-                     _Inout_ List& x,
-                     const_iterator first,
-                     const_iterator last);
-    void splice_some(const_iterator position,
-                     _Inout_ List&& x,
-                     const_iterator first,
-                     const_iterator last);
-
-    void reverse() noexcept;
+    void Reverse() noexcept;
 
 private:
 
-    Rebound rebound_alloc()
+    Rebound ReboundAlloc()
     {
         return m_storage.First();
     }
 
-    EmptyOptimizedPair<TAllocator, List_untyped> m_storage;
+    EmptyOptimizedPair<TAllocator, ListUntyped> m_storage;
 };
 
 } // namespace rad
