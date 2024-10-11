@@ -92,6 +92,12 @@ public:
         x.m_prev = temp;
     }
 
+    void assert_on_empty() const noexcept
+    {
+        // TODO: turn the assert into fast fail.
+        RAD_ASSERT(m_next != this);
+    }
+
     List_basic_node* m_next = this;
     List_basic_node* m_prev = this;
 };
@@ -160,11 +166,13 @@ public:
 
     reference operator*() const noexcept
     {
+        m_node->assert_on_empty();
         return static_cast<List_node<T>*>(m_node)->m_elt;
     }
 
     pointer operator->() const noexcept
     {
+        m_node->assert_on_empty();
         return &static_cast<List_node<T>*>(m_node)->m_elt;
     }
 
@@ -250,11 +258,13 @@ public:
 
     reference operator*() const noexcept
     {
+        m_node->assert_on_empty();
         return static_cast<const List_node<T>*>(m_node)->m_elt;
     }
 
     pointer operator->() const noexcept
     {
+        m_node->assert_on_empty();
         return &static_cast<const List_node<T>*>(m_node)->m_elt;
     }
 
@@ -558,41 +568,20 @@ public:
         return m_storage.Second().expensive_size();
     }
 
-    Res<reference> front()
-    {
-        if (empty())
-        {
-            return Error::OutOfRange;
-        }
-        return *begin();
-    }
-
-    Res<const_reference> front() const
-    {
-        if (empty())
-        {
-            return Error::OutOfRange;
-        }
-        return *begin();
-    }
-
-    Res<reference> back()
-    {
-        if (empty())
-        {
-            return Error::OutOfRange;
-        }
-        return *(--end());
-    }
-
-    Res<const_reference> back() const
-    {
-        if (empty())
-        {
-            return Error::OutOfRange;
-        }
-        return *(--end());
-    }
+    // element access: TODO error handling on these
+    // Alternative, force users to do this themselves.
+    // But *my_list.begin() is no safer, and *(--m_list.end()) is annoying and
+    // unsafe. Heavily encourage people to do `for (auto &elt : list)
+    // {stuff(elt); break;}` That's also gross, and doesn't work well for back()
+    // without reverse iterators Return an optional or an expected?  Well, how
+    // do those handle dereferencing? my_list.front().value() is still unsafe.
+    // pattern matching to save the day, one day?
+    // monadic / visitation APIs?
+    // Deal with this later.  Maybe by having Res support reference types
+    // reference       front();
+    // const_reference front() const;
+    // reference       back();
+    // const_reference back() const;
 
     // [list.modifiers], modifiers
     template <class... Args>
