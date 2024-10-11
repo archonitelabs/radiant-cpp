@@ -24,6 +24,8 @@
 using namespace testing;
 
 // ensure no_unique_address is doing what we want
+static_assert(sizeof(rad::List_untyped) == 2 * sizeof(void*));
+static_assert(sizeof(rad::List<int>) == 2 * sizeof(void*));
 static_assert(sizeof(rad::List_untyped) == sizeof(rad::List<int>));
 
 // TODO: don't forget to test iterator operations and iterator stability!

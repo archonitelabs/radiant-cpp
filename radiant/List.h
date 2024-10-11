@@ -300,16 +300,11 @@ public:
 
     List_untyped(_In_ const List_untyped& x) = delete;
 
-    List_untyped(_Inout_ List_untyped&& x) noexcept
-    {
-        m_head.m_prev = x.m_head.m_prev;
-        m_head.m_next = x.m_head.m_next;
-        x.m_head.unlink();
-    }
+    List_untyped(_Inout_ List_untyped&& x) noexcept = delete;
 
     ~List_untyped() = default;
     List_untyped& operator=(_In_ const List_untyped& x) = delete;
-    List_untyped& operator=(_Inout_ List_untyped&& x) noexcept;
+    List_untyped& operator=(_Inout_ List_untyped&& x) noexcept = delete;
 
     // [list.capacity], capacity
     RAD_NODISCARD bool empty() const noexcept
@@ -455,11 +450,10 @@ public:
 
     using Rebound = typename TAllocator::template Rebind<List_node<T>>::Other;
 
-    List()
-        : List(TAllocator{}) {};
+    List() = default;
 
     explicit List(_In_ const TAllocator& alloc)
-        : m_alloc(alloc)
+        : m_storage(alloc)
     {
     }
 
@@ -487,7 +481,7 @@ public:
     template <class InputIterator>
     Err assign_some(InputIterator first, InputIterator last)
     {
-        List local(m_alloc);
+        List local(m_storage.First());
         for (; first != last; ++first)
         {
             Err res = local.emplace_back(*first);
@@ -497,7 +491,7 @@ public:
             }
         }
         // using m_list swap so that we don't need to swap allocators
-        m_list.swap(local.m_list);
+        m_storage.Second().swap(local.m_storage.Second());
         return EmptyOkType{};
     }
 
@@ -512,38 +506,38 @@ public:
 
     allocator_type get_allocator() const noexcept
     {
-        return m_alloc;
+        return m_storage.First();
     }
 
     // iterators
     RAD_NODISCARD iterator begin() noexcept
     {
-        return iterator(m_list.m_head.m_next);
+        return iterator(m_storage.Second().m_head.m_next);
     }
 
     RAD_NODISCARD const_iterator begin() const noexcept
     {
-        return const_iterator(m_list.m_head.m_next);
+        return const_iterator(m_storage.Second().m_head.m_next);
     }
 
     RAD_NODISCARD iterator end() noexcept
     {
-        return iterator(&m_list.m_head);
+        return iterator(&m_storage.Second().m_head);
     }
 
     RAD_NODISCARD const_iterator end() const noexcept
     {
-        return const_iterator(&m_list.m_head);
+        return const_iterator(&m_storage.Second().m_head);
     }
 
     RAD_NODISCARD const_iterator cbegin() const noexcept
     {
-        return const_iterator(m_list.m_head.m_next);
+        return const_iterator(m_storage.Second().m_head.m_next);
     }
 
     RAD_NODISCARD const_iterator cend() const noexcept
     {
-        return const_iterator(&m_list.m_head);
+        return const_iterator(&m_storage.Second().m_head);
     }
 
     // [list.capacity], capacity
@@ -552,7 +546,7 @@ public:
         // debug perf optimization:  Duplicate "empty"
         // implementation, rather than forward the call down
         // three levels.
-        return m_list.m_head.m_next == &m_list.m_head;
+        return m_storage.Second().m_head.m_next == &m_storage.Second().m_head;
     }
 
     // O(N) operation, renamed so that people don't
@@ -561,23 +555,44 @@ public:
     // entirely.
     RAD_NODISCARD size_t expensive_size() const noexcept
     {
-        return m_list.expensive_size();
+        return m_storage.Second().expensive_size();
     }
 
-    // element access: TODO error handling on these
-    // Alternative, force users to do this themselves.
-    // But *my_list.begin() is no safer, and *(--m_list.end()) is annoying and
-    // unsafe. Heavily encourage people to do `for (auto &elt : list)
-    // {stuff(elt); break;}` That's also gross, and doesn't work well for back()
-    // without reverse iterators Return an optional or an expected?  Well, how
-    // do those handle dereferencing? my_list.front().value() is still unsafe.
-    // pattern matching to save the day, one day?
-    // monadic / visitation APIs?
-    // Deal with this later.
-    // reference       front();
-    // const_reference front() const;
-    // reference       back();
-    // const_reference back() const;
+    Res<reference> front()
+    {
+        if (empty())
+        {
+            return Error::OutOfRange;
+        }
+        return *begin();
+    }
+
+    Res<const_reference> front() const
+    {
+        if (empty())
+        {
+            return Error::OutOfRange;
+        }
+        return *begin();
+    }
+
+    Res<reference> back()
+    {
+        if (empty())
+        {
+            return Error::OutOfRange;
+        }
+        return *(--end());
+    }
+
+    Res<const_reference> back() const
+    {
+        if (empty())
+        {
+            return Error::OutOfRange;
+        }
+        return *(--end());
+    }
 
     // [list.modifiers], modifiers
     template <class... Args>
@@ -595,7 +610,8 @@ public:
         List_node<T>* new_node =
             new (storage) List_node<T>(static_cast<Args&&>(args)...);
         // attach the new node before the end node.
-        m_list.attach_new_node(&m_list.m_head, new_node);
+        m_storage.Second().attach_new_node(&m_storage.Second().m_head,
+                                           new_node);
 
         return EmptyOkType{};
     }
@@ -640,13 +656,13 @@ public:
         List_node<T>* storage = rebound_alloc().Alloc(1);
         if (storage == nullptr)
         {
-            return iterator(&m_list.m_head);
+            return iterator(&m_storage.Second().m_head);
         }
         // forward to placement new
         List_node<T>* new_node =
             new (storage) List_node<T>(static_cast<Args&&>(args)...);
         // insert the new node before the end node.
-        m_list.attach_new_node(&position.m_node, new_node);
+        m_storage.Second().attach_new_node(&position.m_node, new_node);
 
         return iterator(new_node);
     }
@@ -682,17 +698,17 @@ public:
     void swap(_Inout_ List& x) noexcept
     {
         {
-            TAllocator temp = m_alloc;
-            m_alloc = x.m_alloc;
-            x.m_alloc = temp;
+            TAllocator temp = m_storage.First();
+            m_storage.First() = x.m_storage.First();
+            x.m_storage.First() = temp;
         }
-        m_list.swap(x.m_list);
+        m_storage.Second().swap(x.m_storage.Second());
     }
 
     void clear() noexcept
     {
-        List_basic_node* cur = m_list.m_head.m_next;
-        while (cur != &m_list.m_head)
+        List_basic_node* cur = m_storage.Second().m_head.m_next;
+        while (cur != &m_storage.Second().m_head)
         {
             List_node<T>* typed = static_cast<List_node<T>*>(cur);
             cur = cur->m_next; // TODO suppress C6001 uninit memory warning?
@@ -700,7 +716,7 @@ public:
             typed->~List_node();
             rebound_alloc().Free(typed);
         }
-        m_list.m_head.unlink();
+        m_storage.Second().m_head.unlink();
     }
 
     // [list.ops], list operations
@@ -727,11 +743,10 @@ private:
 
     Rebound rebound_alloc()
     {
-        return m_alloc;
+        return m_storage.First();
     }
 
-    List_untyped m_list;
-    RAD_NO_UNIQUE_ADDRESS TAllocator m_alloc;
+    EmptyOptimizedPair<TAllocator, List_untyped> m_storage;
 };
 
 } // namespace rad
