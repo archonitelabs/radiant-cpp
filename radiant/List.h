@@ -201,7 +201,7 @@ public:
     {
         ListIterator retval(m_node);
         m_node = m_node->m_prev;
-        return *this;
+        return retval;
     }
 
 private:
@@ -293,7 +293,7 @@ public:
     {
         ListConstIterator retval(m_node);
         m_node = m_node->m_prev;
-        return *this;
+        return retval;
     }
 
 private:
@@ -321,7 +321,7 @@ public:
     // [list.capacity], capacity
     RAD_NODISCARD bool Empty() const noexcept
     {
-        return m_head.m_next == &m_head;
+        return m_head.m_next == &m_head; // TODO: delete this one?
     }
 
     // O(N) operation, renamed so that people don't
@@ -381,6 +381,16 @@ public:
 
     ListBasicNode m_head;
 };
+
+inline Err ToErr(void* ptr)
+{
+    if (ptr == nullptr)
+    {
+        return Error::NoMemory;
+    }
+    return EmptyOkType{};
+}
+
 } // namespace detail
 
 /*!
@@ -496,12 +506,13 @@ public:
     Err AssignSome(InputIterator first, InputIterator last)
     {
         List local(m_storage.First());
+        auto end_iter = local.cend();
         for (; first != last; ++first)
         {
-            Err res = local.EmplaceBack(*first);
-            if (res.IsErr())
+            void* ptr = local.EmplacePtr(end_iter, *first);
+            if (ptr == nullptr)
             {
-                return res;
+                return Error::NoMemory;
             }
         }
         // using m_list Swap so that we don't need to swap allocators
@@ -518,12 +529,13 @@ public:
     Err AssignCount(SizeType n, _In_ const T& t)
     {
         List local(m_storage.First());
+        auto end_iter = local.cend();
         for (SizeType i = 0; i < n; ++i)
         {
-            Err res = local.EmplaceBack(t);
-            if (res.IsErr())
+            void* ptr = local.EmplacePtr(end_iter, t);
+            if (ptr == nullptr)
             {
-                return res;
+                return Error::NoMemory;
             }
         }
         // using m_list Swap so that we don't need to swap allocators
@@ -609,27 +621,28 @@ public:
 
     // [list.modifiers], modifiers
     template <class... Args>
-    Err EmplaceFront(Args&&... args);
+    Err EmplaceFront(Args&&... args)
+    {
+        return ::rad::detail::ToErr(
+            EmplacePtr(cbegin(), static_cast<Args&&>(args)...));
+    }
 
     template <class... Args>
     Err EmplaceBack(Args&&... args)
     {
-        ::rad::detail::ListNode<T>* storage = ReboundAlloc().Alloc(1);
-        if (storage == nullptr)
-        {
-            return Error::NoMemory;
-        }
-        // forward to placement new
-        ::rad::detail::ListNode<T>* new_node = new (
-            storage)::rad::detail::ListNode<T>(static_cast<Args&&>(args)...);
-        // attach the new node before the end node.
-        m_storage.Second().AttachNewNode(&m_storage.Second().m_head, new_node);
-
-        return EmptyOkType{};
+        return ::rad::detail::ToErr(
+            EmplacePtr(cend(), static_cast<Args&&>(args)...));
     }
 
-    Err PushFront(_In_ const T& x);
-    Err PushFront(_Inout_ T&& x);
+    Err PushFront(_In_ const T& x)
+    {
+        return ::rad::detail::ToErr(EmplacePtr(cbegin(), x));
+    }
+
+    Err PushFront(_Inout_ T&& x)
+    {
+        return ::rad::detail::ToErr(EmplacePtr(cbegin(), static_cast<T&&>(x)));
+    }
 
     template <typename InputRange>
     Err PrependRange(InputRange&& rg);
@@ -641,12 +654,12 @@ public:
 
     Err PushBack(_In_ const T& x)
     {
-        return EmplaceBack(x);
+        return ::rad::detail::ToErr(EmplacePtr(cend(), x));
     }
 
     Err PushBack(_Inout_ T&& x)
     {
-        return EmplaceBack(static_cast<T&&>(x));
+        return ::rad::detail::ToErr(EmplacePtr(cend(), static_cast<T&&>(x)));
     }
 
     template <typename InputRange>
@@ -665,18 +678,7 @@ public:
     template <class... Args>
     RAD_NODISCARD Iterator Emplace(ConstIterator position, Args&&... args)
     {
-        ::rad::detail::ListNode<T>* storage = ReboundAlloc().Alloc(1);
-        if (storage == nullptr)
-        {
-            return Iterator(&m_storage.Second().m_head);
-        }
-        // forward to placement new
-        ::rad::detail::ListNode<T>* new_node = new (
-            storage)::rad::detail::ListNode<T>(static_cast<Args&&>(args)...);
-        // insert the new node before the end node.
-        m_storage.Second().AttachNewNode(&position.m_node, new_node);
-
-        return Iterator(new_node);
+        return ToIter(EmplacePtr(position, static_cast<Args&&>(args)...));
     }
 
     RAD_NODISCARD Iterator Insert(ConstIterator position, _In_ const T& x);
@@ -750,6 +752,41 @@ public:
     void Reverse() noexcept;
 
 private:
+
+    Iterator ToIter(::rad::detail::ListNode<T>* ptr)
+    {
+        if (ptr == nullptr)
+        {
+            return Iterator(&m_storage.Second().m_head); // end iterator
+        }
+        return Iterator(ptr);
+    }
+
+    template <class... Args>
+    RAD_NODISCARD ::rad::detail::ListNode<T>* EmplacePtr(ConstIterator position,
+                                                         Args&&... args)
+    {
+        ::rad::detail::ListNode<T>* storage = ReboundAlloc().Alloc(1);
+        if (storage == nullptr)
+        {
+            return nullptr;
+        }
+        // forward to placement new
+        ::rad::detail::ListNode<T>* new_node = new (
+            storage)::rad::detail::ListNode<T>(static_cast<Args&&>(args)...);
+
+        // The position iterator that comes in is const, but this container
+        // is non-const.  There's a precondition that the position iterator
+        // is pointing into our container, so we aren't breaking const
+        // correctness with this cast.  We could get the same results (though
+        // slower) by doing an ->m_prev->m_next.
+        ::rad::detail::ListBasicNode* mut_pos =
+            const_cast<::rad::detail::ListBasicNode*>(position.m_node);
+        // insert the new node before passed in position
+        m_storage.Second().AttachNewNode(mut_pos, new_node);
+
+        return new_node;
+    }
 
     Rebound ReboundAlloc()
     {

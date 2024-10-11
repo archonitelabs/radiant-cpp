@@ -116,7 +116,7 @@ TEST(ListTest, AllocatorConstructors)
     }
 }
 
-TEST(ListTest, TestPushBackFailureRecovery)
+TEST(ListTest, PushBackFailureRecovery)
 {
     radtest::HeapAllocator heap;
     radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
@@ -173,6 +173,23 @@ TEST(ListTest, CopyPushBack)
     ListValEqual(i, { 42, 99, 77 });
 }
 
+TEST(ListTest, CopyPushFront)
+{
+    rad::List<CopyStruct> i;
+    CopyStruct local;
+    local.val = 42;
+    EXPECT_TRUE(i.PushFront(local).IsOk());
+    ListValEqual(i, { 42 });
+
+    local.val = 99;
+    EXPECT_TRUE(i.PushFront(local).IsOk());
+    ListValEqual(i, { 99, 42 });
+
+    local.val = 77;
+    EXPECT_TRUE(i.PushFront(local).IsOk());
+    ListValEqual(i, { 77, 99, 42 });
+}
+
 struct MoveStruct
 {
     MoveStruct() = default;
@@ -200,14 +217,36 @@ TEST(ListTest, MovePushBack)
     MoveStruct local;
     EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
     ListValEqual(i, { 42 });
+    EXPECT_EQ(local.val, -1);
 
     local.val = 99;
     EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
     ListValEqual(i, { 42, 99 });
+    EXPECT_EQ(local.val, -1);
 
     local.val = 77;
     EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
     ListValEqual(i, { 42, 99, 77 });
+    EXPECT_EQ(local.val, -1);
+}
+
+TEST(ListTest, MovePushFront)
+{
+    rad::List<MoveStruct> i;
+    MoveStruct local;
+    EXPECT_TRUE(i.PushFront(std::move(local)).IsOk());
+    ListValEqual(i, { 42 });
+    EXPECT_EQ(local.val, -1);
+
+    local.val = 99;
+    EXPECT_TRUE(i.PushFront(std::move(local)).IsOk());
+    ListValEqual(i, { 99, 42 });
+    EXPECT_EQ(local.val, -1);
+
+    local.val = 77;
+    EXPECT_TRUE(i.PushFront(std::move(local)).IsOk());
+    ListValEqual(i, { 77, 99, 42 });
+    EXPECT_EQ(local.val, -1);
 }
 
 struct ImmovableStruct
@@ -237,6 +276,19 @@ TEST(ListTest, ImmovableEmplaceBack)
 
     EXPECT_TRUE(i.EmplaceBack(77).IsOk());
     ListValEqual(i, { 42, 99, 77 });
+}
+
+TEST(ListTest, ImmovableEmplaceFront)
+{
+    rad::List<ImmovableStruct> i;
+    EXPECT_TRUE(i.EmplaceFront(42).IsOk());
+    ListValEqual(i, { 42 });
+
+    EXPECT_TRUE(i.EmplaceFront(99).IsOk());
+    ListValEqual(i, { 99, 42 });
+
+    EXPECT_TRUE(i.EmplaceFront(77).IsOk());
+    ListValEqual(i, { 77, 99, 42 });
 }
 
 TEST(ListTest, AssignInitList)
@@ -400,4 +452,167 @@ TEST(ListTest, AssignRange)
     rad::List<int> new_copy;
     EXPECT_TRUE(new_copy.AssignRange(input).IsOk());
     ListEqual(input, { 101, 203, 304 });
+}
+
+TEST(ListTest, AssignCount)
+{
+    rad::List<int> input;
+
+    EXPECT_TRUE(input.AssignCount(0, 42).IsOk());
+    EXPECT_TRUE(input.Empty());
+
+    EXPECT_TRUE(input.AssignCount(3, 99).IsOk());
+    ListEqual(input, { 99, 99, 99 });
+}
+
+TEST(ListTest, Emplace)
+{
+    radtest::HeapAllocator heap;
+    radtest::AllocWrapper<ImmovableStruct, radtest::HeapAllocator> alloc(heap);
+    rad::List<ImmovableStruct,
+              radtest::AllocWrapper<ImmovableStruct, radtest::HeapAllocator>>
+        input(alloc);
+    decltype(input.begin()) iter;
+
+    // emplace at the end
+    iter = input.Emplace(input.end(), 42);
+    EXPECT_TRUE(iter == --input.end());
+    EXPECT_EQ(iter->val, 42);
+    iter = input.Emplace(input.end(), 43);
+    EXPECT_TRUE(iter == --input.end());
+    EXPECT_EQ(iter->val, 43);
+    ListValEqual(input, { 42, 43 });
+
+    // emplace at the beginning
+    iter = input.Emplace(input.begin(), 99);
+    EXPECT_TRUE(iter == input.begin());
+    EXPECT_EQ(iter->val, 99);
+    iter = input.Emplace(input.begin(), 100);
+    EXPECT_TRUE(iter == input.begin());
+    EXPECT_EQ(iter->val, 100);
+    ListValEqual(input, { 100, 99, 42, 43 });
+
+    // emplace near the beginning
+    auto old_iter = ++input.begin();
+    iter = input.Emplace(old_iter, 23);
+    EXPECT_TRUE(iter == ++input.begin());
+    EXPECT_TRUE(iter != old_iter);
+    ListValEqual(input, { 100, 23, 99, 42, 43 });
+
+    // emplace near the end
+    old_iter = --input.end();
+    iter = input.Emplace(old_iter, 77);
+    EXPECT_TRUE(iter == --(--input.end()));
+    EXPECT_TRUE(iter != old_iter);
+    ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+
+    heap.forceAllocFails = 1;
+    iter = input.Emplace(input.begin(), -1);
+    EXPECT_TRUE(iter == input.end());
+    ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+}
+
+TEST(ListTest, AssignFailure)
+{
+    radtest::HeapAllocator heap;
+    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
+    rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        alloc);
+
+    // AssignCount fails back to empty when it starts empty
+    heap.forceFutureAllocFail = 3;
+    EXPECT_TRUE(list.AssignCount(5, 99).IsErr());
+    EXPECT_EQ(heap.allocCount, 2);
+    EXPECT_EQ(heap.freeCount, 2);
+    EXPECT_TRUE(list.Empty());
+
+    // AssignInitializerList fails back to empty when it starts empty
+    heap.allocCount = heap.freeCount = 0;
+    heap.forceFutureAllocFail = 3;
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsErr());
+    EXPECT_EQ(heap.allocCount, 2);
+    EXPECT_EQ(heap.freeCount, 2);
+    EXPECT_TRUE(list.Empty());
+
+    // make sure nothing is corrupted
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+    ListEqual(list, { 1, 2, 3, 4, 5 });
+    auto old_begin = list.begin();
+    auto old_end = list.end();
+    int* first_addr = &*old_begin;
+
+    // Original contents still in place if there's a failure
+    heap.allocCount = heap.freeCount = 0;
+    heap.forceFutureAllocFail = 5;
+    EXPECT_TRUE(list.AssignCount(5, 99).IsErr());
+    EXPECT_EQ(heap.allocCount, 4);
+    EXPECT_EQ(heap.freeCount, 4);
+    EXPECT_EQ(list.end(), old_end);
+    EXPECT_EQ(list.begin(), old_begin);
+    EXPECT_EQ(&*list.begin(), first_addr);
+    ListEqual(list, { 1, 2, 3, 4, 5 });
+
+    heap.allocCount = heap.freeCount = 0;
+    heap.forceFutureAllocFail = 5;
+    EXPECT_TRUE(
+        list.AssignInitializerList({ 101, 102, 103, 104, 105 }).IsErr());
+    EXPECT_EQ(heap.allocCount, 4);
+    EXPECT_EQ(heap.freeCount, 4);
+    EXPECT_EQ(list.end(), old_end);
+    EXPECT_EQ(list.begin(), old_begin);
+    EXPECT_EQ(&*list.begin(), first_addr);
+    ListEqual(list, { 1, 2, 3, 4, 5 });
+}
+
+TEST(ListTest, PostIncrPostDecr)
+{
+    rad::List<int> data;
+    EXPECT_TRUE(data.AssignInitializerList({ 0, 1, 2, 3 }));
+    auto pre_begin = data.begin();
+    auto post_begin = data.begin();
+    EXPECT_EQ(pre_begin, post_begin++);
+    EXPECT_EQ(*pre_begin, 0);
+    EXPECT_EQ(*post_begin, 1);
+    EXPECT_NE(pre_begin, post_begin);
+    EXPECT_EQ(++pre_begin, post_begin);
+    EXPECT_EQ(*pre_begin, 1);
+    EXPECT_EQ(*post_begin, 1);
+    EXPECT_EQ(*++pre_begin, 2);
+    EXPECT_EQ(*post_begin++, 1);
+
+    auto pre_end = --data.end();
+    auto post_end = --data.end();
+    EXPECT_EQ(pre_end, post_end--);
+    EXPECT_EQ(*pre_end, 3);
+    EXPECT_EQ(*post_end, 2);
+    EXPECT_NE(pre_end, post_end);
+    EXPECT_EQ(--pre_end, post_end);
+    EXPECT_EQ(*pre_end, 2);
+    EXPECT_EQ(*post_end, 2);
+    EXPECT_EQ(*--pre_end, 1);
+    EXPECT_EQ(*post_end--, 2);
+
+    auto pre_cbegin = data.cbegin();
+    auto post_cbegin = data.cbegin();
+    EXPECT_EQ(pre_cbegin, post_cbegin++);
+    EXPECT_EQ(*pre_cbegin, 0);
+    EXPECT_EQ(*post_cbegin, 1);
+    EXPECT_NE(pre_cbegin, post_cbegin);
+    EXPECT_EQ(++pre_cbegin, post_cbegin);
+    EXPECT_EQ(*pre_cbegin, 1);
+    EXPECT_EQ(*post_cbegin, 1);
+    EXPECT_EQ(*++pre_cbegin, 2);
+    EXPECT_EQ(*post_cbegin++, 1);
+
+    auto pre_cend = --data.cend();
+    auto post_cend = --data.cend();
+    EXPECT_EQ(pre_cend, post_cend--);
+    EXPECT_EQ(*pre_cend, 3);
+    EXPECT_EQ(*post_cend, 2);
+    EXPECT_NE(pre_cend, post_cend);
+    EXPECT_EQ(--pre_cend, post_cend);
+    EXPECT_EQ(*pre_cend, 2);
+    EXPECT_EQ(*post_cend, 2);
+    EXPECT_EQ(*--pre_cend, 1);
+    EXPECT_EQ(*post_cend--, 2);
 }

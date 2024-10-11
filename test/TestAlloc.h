@@ -591,6 +591,14 @@ struct HeapAllocator
             forceAllocFails--;
             return nullptr;
         }
+        if (forceFutureAllocFail > 0)
+        {
+            forceFutureAllocFail--;
+            if (forceFutureAllocFail == 0)
+            {
+                return nullptr;
+            }
+        }
 
         allocCount++;
         return malloc(count);
@@ -640,6 +648,7 @@ struct HeapAllocator
 
     int32_t freeCount{ 0 };
 
+    int32_t forceFutureAllocFail{ 0 };
     int32_t forceAllocFails{ 0 };
     int32_t allocCount{ 0 };
 
