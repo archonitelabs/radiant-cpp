@@ -25,5 +25,7 @@ jobs:
           cache-dependency-path: ./tools/rad/setup.py
       - name: Install Rad Tool
         run: pip install -e ./tools/rad
+      - name: Initialize
+        run: rad init
       - name: Run Linter
         run: rad lint --all-files --skip no-commit-to-branch

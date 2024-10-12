@@ -19,10 +19,9 @@
 #define RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS 0
 #define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 0
 
-#include "gtest/gtest.h"
-
 #include "radiant/Utility.h"
 
+#include "gtest/gtest.h"
 #include "test/TestMove.h"
 
 RAD_S_ASSERT(noexcept(rad::Forward<int>(rad::DeclVal<int>())));

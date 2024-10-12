@@ -20,7 +20,6 @@
 #define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 0
 
 #include "gtest/gtest.h"
-
 #include "test/TestAlloc.h"
 
 #define RAD_DEFAULT_ALLOCATOR radtest::Allocator

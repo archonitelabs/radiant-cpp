@@ -1,0 +1,8 @@
+---
+InheritParentConfig: true
+Checks:
+  - misc-include-cleaner
+  - llvm-include-order
+  - performance-*
+  - portability-*
+  - -performance-enum-size

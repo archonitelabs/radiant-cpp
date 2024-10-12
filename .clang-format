@@ -6,32 +6,47 @@ UseTab: Never
 ColumnLimit: 80
 ReflowComments: true
 AccessModifierOffset: -4
-SortIncludes: Never
 UseCRLF: false
 
 BreakBeforeBraces: Custom
 BraceWrapping:
-    AfterCaseLabel: true
-    AfterClass: true
-    AfterEnum: true
-    AfterFunction: true
-    AfterNamespace: true
-    AfterStruct: true
-    AfterUnion: true
-    AfterExternBlock: true
-    BeforeCatch: true
-    BeforeElse: true
-    BeforeLambdaBody: true
-    BeforeWhile: true
-    IndentBraces: false
-    SplitEmptyFunction: true
-    SplitEmptyRecord: true
-    SplitEmptyNamespace: true
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: true
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: None
 BreakBeforeTernaryOperators: true
 BreakInheritanceList: AfterComma
 SeparateDefinitionBlocks: Always
 AlwaysBreakTemplateDeclarations: Yes
+
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"radiant/TotallyRad.h"'
+    Priority: 0
+    SortPriority: 0
+  - Regex: '^"radiant/.*\.h"'
+    Priority: 0
+    SortPriority: 1
+  - Regex: '^".*\.h"$'
+    Priority: 1
+    SortPriority: 2
+  - Regex: '^<.*>$'
+    Priority: 1
+    SortPriority: 3
 
 BinPackArguments: false
 BinPackParameters: false
@@ -41,13 +56,13 @@ ReferenceAlignment: Left
 AlignAfterOpenBracket: Align
 AlignArrayOfStructures: Right
 AlignConsecutiveBitFields:
-    Enabled: true
-    AcrossEmptyLines: false
-    AcrossComments: true
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
 AlignConsecutiveMacros:
-    Enabled: true
-    AcrossEmptyLines: false
-    AcrossComments: true
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
 AlignEscapedNewlines: Right
 AlignOperands: Align
 IndentCaseBlocks: false

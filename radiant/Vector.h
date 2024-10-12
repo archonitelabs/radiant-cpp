@@ -15,9 +15,16 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
-#include "radiant/Memory.h"
 #include "radiant/EmptyOptimizedPair.h"
+#include "radiant/Memory.h"
+#include "radiant/Res.h"
+#include "radiant/Span.h"
 #include "radiant/detail/VectorOperations.h"
+
+#include <stdint.h>
+#if RAD_ENABLE_STD
+#include <initializer_list>
+#endif
 
 namespace rad
 {
