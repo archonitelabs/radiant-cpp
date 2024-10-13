@@ -23,6 +23,15 @@
 #include <initializer_list>
 #endif
 
+//
+// Result is effectively a type-safe union and GCC gets confused about the union
+// being "maybe" uninitialized.
+//
+#if !RAD_DBG && defined(RAD_GCC_VERSION)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 namespace rad
 {
 
@@ -82,10 +91,6 @@ struct ResultStorage<T, E, true>
 
     constexpr ResultStorage() noexcept
         : m_state(ResultState::Empty)
-#if !RAD_CPP17
-          ,
-          m_default(false)
-#endif
     {
     }
 
@@ -150,7 +155,6 @@ struct ResultStorage<T, E, true>
     {
         OkWrap m_ok;
         ErrWrap m_err;
-        bool m_default;
     };
 };
 
@@ -174,10 +178,6 @@ struct ResultStorage<T, E, false>
 
     constexpr ResultStorage() noexcept
         : m_state(ResultState::Empty)
-#if !RAD_CPP17
-          ,
-          m_default(false)
-#endif
     {
     }
 
@@ -255,7 +255,6 @@ struct ResultStorage<T, E, false>
     {
         OkWrap m_ok;
         ErrWrap m_err;
-        bool m_default;
     };
 };
 
@@ -1262,3 +1261,7 @@ constexpr inline EnIf<IsSame<Decay<E>, Decay<E2>>, bool> operator!=(
 }
 
 } // namespace rad
+
+#if !RAD_DBG && defined(RAD_GCC_VERSION)
+#pragma GCC diagnostic pop
+#endif
