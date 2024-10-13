@@ -29,11 +29,6 @@
 #include <string>
 #include <utility>
 
-#if !RAD_DBG && defined(RAD_GCC_VERSION)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-
 namespace testnoexcept
 {
 
@@ -3193,7 +3188,3 @@ TEST(ResultTests, CompareRes)
     EXPECT_FALSE(value != rad::ResultErr<MYSTATUS>(MYSTATUS_UNSUCCESSFUL));
     EXPECT_FALSE(rad::ResultErr<MYSTATUS>(MYSTATUS_UNSUCCESSFUL) != value);
 }
-
-#if !RAD_DBG && defined(RAD_GCC_VERSION)
-#pragma GCC diagnostic pop
-#endif

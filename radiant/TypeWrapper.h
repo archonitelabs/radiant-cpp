@@ -157,6 +157,10 @@ private:
 template <typename T>
 class TypeWrapper<T, true>
 {
+private:
+
+    using PointerType = RemoveRef<T>*;
+
 public:
 
     using Type = T;
@@ -165,55 +169,55 @@ public:
 
     template <typename U, EnIf<IsCtor<T, U>, int> = 0>
     constexpr explicit TypeWrapper(U&& val) noexcept
-        : m_ref(Forward<U>(val))
+        : m_value(AddrOf(Forward<U>(val)))
     {
     }
 
     template <typename U, EnIf<IsLRefBindable<T, U&>, int> = 0>
     constexpr explicit TypeWrapper(TypeWrapper<U>& r) noexcept
-        : m_ref(r.Get())
+        : m_value(AddrOf(r.Get()))
     {
     }
 
     template <typename U, EnIf<IsLRefBindable<T, const U&>, int> = 0>
     constexpr explicit TypeWrapper(const TypeWrapper<U>& r) noexcept
-        : m_ref(r.Get())
+        : m_value(AddrOf(r.Get()))
     {
     }
 
     template <typename U, EnIf<IsLRefBindable<T, U&>, int> = 0>
     constexpr explicit TypeWrapper(TypeWrapper<U>&& r) noexcept
-        : m_ref(r.Get())
+        : m_value(AddrOf(r.Get()))
     {
     }
 
-    template <typename U, EnIf<IsCtor<T, U>, int> = 0>
+    template <typename U, EnIf<IsLRefBindable<T, U&>, int> = 0>
     constexpr TypeWrapper& operator=(U&& val) noexcept
     {
-        new (this) TypeWrapper(Forward<U>(val));
+        m_value = AddrOf(Forward<U>(val));
         return *this;
     }
 
-    template <typename U, EnIf<IsCtor<T, U&>, int> = 0>
+    template <typename U, EnIf<IsLRefBindable<T, U&>, int> = 0>
     constexpr TypeWrapper& operator=(TypeWrapper<U>& r) noexcept
     {
-        new (this) TypeWrapper(r.Get());
+        m_value = AddrOf(r.Get());
         return *this;
     }
 
     constexpr T& Get() noexcept
     {
-        return m_ref;
+        return *m_value;
     }
 
     constexpr const T& Get() const noexcept
     {
-        return m_ref;
+        return *m_value;
     }
 
 private:
 
-    T m_ref;
+    PointerType m_value;
 };
 
 template <typename T, typename U>
