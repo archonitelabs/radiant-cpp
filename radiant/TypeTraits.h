@@ -38,6 +38,9 @@ template <typename T>
 using RemoveCV = typename remove_cv<T>::type;
 
 template <typename T>
+using RemoveCVRef = RemoveCV<RemoveRef<T>>;
+
+template <typename T>
 using RemoveConst = typename remove_const<T>::type;
 
 template <typename T>

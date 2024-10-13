@@ -43,9 +43,11 @@ RAD_S_ASSERT(!noexcept(TW<TO>(rad::DeclVal<TO&>())));
 RAD_S_ASSERT(noexcept(TW<NTO>(rad::DeclVal<NTO&&>())));
 RAD_S_ASSERT(!noexcept(TW<TO>(rad::DeclVal<TO&&>())));
 
+#if RAD_ENABLE_STD
 // noexcept passthrough initializer_list ctor
 RAD_S_ASSERT(noexcept(TW<NTO>({ 1, 2 })));
 RAD_S_ASSERT(!noexcept(TW<TO>({ 1, 2 })));
+#endif
 
 // noexcept passthrough wrapper default copy ctor
 RAD_S_ASSERT(noexcept(TW<NTO>(rad::DeclVal<TW<NTO>&>())));
