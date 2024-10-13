@@ -7,3 +7,6 @@ build --experimental_cc_shared_library
 
 # Remove error output limit
 build --experimental_ui_max_stdouterr_bytes=-1
+
+# Do not strip symbols
+build --strip=never

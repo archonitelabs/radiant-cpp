@@ -18,7 +18,18 @@ RAD_CPP20 = select({
     "//:clang": ["-std=c++20"],
 })
 
-RAD_GCC_OPTS = [
+RAD_ASAN_COPTS = [
+    "-fsanitize=address",
+    "-DADDRESS_SANITIZER",
+    "-g",
+    "-fno-omit-frame-pointer",
+]
+
+RAD_ASAN_LINKOPTS = [
+    "-fsanitize=address",
+]
+
+RAD_GCC_COPTS = [
     "-Wall",
     "-Wextra",
     "-Wcast-qual",
@@ -37,6 +48,8 @@ RAD_GCC_OPTS = [
     "-Wpedantic",
 ]
 
+RAD_GCC_LINKOPTS = []
+
 RAD_DEFAULT_COPTS = select({
     "//:msvc": [
         "/W4",
@@ -44,6 +57,12 @@ RAD_DEFAULT_COPTS = select({
         "/DNOMINMAX",
         "/Zc:__cplusplus",
     ],
-    "//:gcc": RAD_GCC_OPTS,
-    "//:clang": RAD_GCC_OPTS,
+    "//:gcc": RAD_GCC_COPTS + RAD_ASAN_COPTS,
+    "//:clang": RAD_GCC_COPTS,
+})
+
+RAD_DEFAULT_LINKOPTS = select({
+    "//:msvc": [],
+    "//:gcc": RAD_GCC_LINKOPTS + RAD_ASAN_LINKOPTS,
+    "//:clang": RAD_GCC_LINKOPTS,
 })

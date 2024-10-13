@@ -1,4 +1,4 @@
-load("//:default_copts.bzl", "RAD_CPP14", "RAD_CPP17", "RAD_CPP20", "RAD_DEFAULT_COPTS")
+load("//:default_copts.bzl", "RAD_CPP14", "RAD_CPP17", "RAD_CPP20", "RAD_DEFAULT_COPTS", "RAD_DEFAULT_LINKOPTS")
 
 filegroup(
     name = "test_srcs",
@@ -22,6 +22,7 @@ cc_test(
     size = TEST_SIZE,
     srcs = TEST_SRCS,
     copts = RAD_CPP14 + RAD_DEFAULT_COPTS,
+    linkopts = RAD_DEFAULT_LINKOPTS,
     deps = TEST_DEPS,
 )
 
@@ -30,6 +31,7 @@ cc_test(
     size = TEST_SIZE,
     srcs = TEST_SRCS,
     copts = RAD_CPP17 + RAD_DEFAULT_COPTS,
+    linkopts = RAD_DEFAULT_LINKOPTS,
     deps = TEST_DEPS,
 )
 
@@ -38,5 +40,6 @@ cc_test(
     size = TEST_SIZE,
     srcs = TEST_SRCS,
     copts = RAD_CPP20 + RAD_DEFAULT_COPTS,
+    linkopts = RAD_DEFAULT_LINKOPTS,
     deps = TEST_DEPS,
 )
