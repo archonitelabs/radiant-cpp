@@ -19,12 +19,13 @@
 #define RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS 0
 #define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 0
 
-#include "radiant/Result.h"
-#include "radiant/Utility.h"
-
 #include "gtest/gtest.h"
 #include "test/TestMove.h"
 #include "test/TestThrow.h"
+
+#include "radiant/Result.h"
+#include "radiant/Utility.h"
+
 #include <string>
 #include <utility>
 

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "radiant/UniqueResource.h"
-
 #include "gtest/gtest.h"
+
+#include "radiant/UniqueResource.h"
 
 static int g_IsValidCalls = 0;
 static int g_CloseCalls = 0;

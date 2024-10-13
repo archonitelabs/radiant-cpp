@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "radiant/Integer.h"
-
 #include "gtest/gtest.h"
+
+#include "radiant/Integer.h"
 
 // clang-format off
 
