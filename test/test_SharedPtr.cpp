@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#define RAD_DEFAULT_ALLOCATOR radtest::Allocator
+
 #include "gtest/gtest.h"
 #include "test/TestAlloc.h"
 #include "test/TestThrow.h"
-#define RAD_DEFAULT_ALLOCATOR radtest::Allocator
 
 #include "radiant/SharedPtr.h"
 

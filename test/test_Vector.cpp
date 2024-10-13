@@ -19,10 +19,10 @@
 #define RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS 0
 #define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 0
 
+#define RAD_DEFAULT_ALLOCATOR radtest::Allocator
+
 #include "gtest/gtest.h"
 #include "test/TestAlloc.h"
-
-#define RAD_DEFAULT_ALLOCATOR radtest::Allocator
 
 #include "radiant/Vector.h"
 

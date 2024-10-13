@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "radiant/Span.h"
-#include "radiant/Utility.h"
-
 #include "gtest/gtest.h"
 #include "test/TestThrow.h"
+
+#include "radiant/Span.h"
+#include "radiant/Utility.h"
 
 static constexpr auto g_SpanString = rad::MakeSpan("Span String");
 static constexpr const uint8_t g_Bytes[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55,

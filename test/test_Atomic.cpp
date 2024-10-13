@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "gtest/gtest.h"
-
 #define RAD_REQUIRE_EXPLICIT_ATOMIC_ORDERING 0
+
+#include "gtest/gtest.h"
 
 #include "radiant/Atomic.h"
 #include "radiant/Utility.h"
