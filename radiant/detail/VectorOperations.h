@@ -32,6 +32,8 @@ namespace detail
 template <typename T, typename TAllocator>
 struct VectorAlloc
 {
+public:
+
     ~VectorAlloc()
     {
         if (buffer)
@@ -42,10 +44,10 @@ struct VectorAlloc
     }
 
     explicit VectorAlloc(TAllocator& alloc) noexcept
-        : allocator(alloc),
-          buffer(nullptr),
+        : buffer(nullptr),
           size(0),
-          capacity(0)
+          capacity(0),
+          allocator(alloc)
     {
     }
 
@@ -53,6 +55,8 @@ struct VectorAlloc
 
     bool Alloc(uint32_t count)
     {
+        RAD_ASSERT(buffer == nullptr);
+
         buffer = allocator.Alloc(count);
         if (!buffer)
         {
@@ -73,10 +77,13 @@ struct VectorAlloc
         return tmp;
     }
 
-    TAllocator& allocator;
     T* buffer;
     uint32_t size;
     uint32_t capacity;
+
+private:
+
+    TAllocator& allocator;
 };
 
 template <typename T>
@@ -401,8 +408,7 @@ struct VectorStorage<T, TInlineCount, false>
         }
 
         VectorAlloc<ValueType, TAllocator> vec(alloc);
-        vec.buffer = vec.allocator.Alloc(m_size);
-        if (!vec.buffer)
+        if (!vec.Alloc(m_size))
         {
             return Error::NoMemory;
         }
@@ -523,8 +529,7 @@ struct VectorStorage<T, TInlineCount, true>
         else
         {
             VectorAlloc<ValueType, TAllocator> vec(alloc);
-            vec.buffer = vec.allocator.Alloc(m_size);
-            if (!vec.buffer)
+            if (!vec.Alloc(m_size))
             {
                 return Error::NoMemory;
             }
@@ -866,6 +871,8 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         }
         else
         {
+            Free(alloc);
+
             m_data = vec.Release();
             m_capacity = count;
         }
@@ -895,14 +902,15 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         else
         {
             VectorAlloc<ValueType, TAllocator> vec(alloc);
-            vec.buffer = vec.allocator.Alloc(count);
-            if (!vec.buffer)
+            if (!vec.Alloc(count))
             {
                 return Error::NoMemory;
             }
 
             ManipType().CopyCtor(vec.buffer, count, value);
             ManipType().DtorRange(Data(), Data() + m_size);
+
+            Free(alloc);
 
             m_data = vec.Release();
             m_capacity = count;
@@ -942,6 +950,8 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         }
         else
         {
+            Free(alloc);
+
             m_data = vec.Release();
             m_capacity = span.Size();
         }
