@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -31,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -44,7 +44,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -57,7 +57,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -71,7 +71,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@978f271de0b0456fd8298c8aed498d3b860bce46
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
