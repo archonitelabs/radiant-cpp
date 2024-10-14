@@ -518,6 +518,137 @@ TEST(ListTest, Emplace)
     ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
 }
 
+TEST(ListTest, MoveInsert)
+{
+    radtest::HeapAllocator heap;
+    radtest::AllocWrapper<MoveStruct, radtest::HeapAllocator> alloc(heap);
+    rad::List<MoveStruct,
+              radtest::AllocWrapper<MoveStruct, radtest::HeapAllocator>>
+        input(alloc);
+
+    MoveStruct ms;
+    ms.val = 42;
+    // insert at the end
+    auto /* Res<Iterator> */ iter = input.Insert(input.end(), std::move(ms));
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == --input.end());
+    EXPECT_EQ(iter.Ok()->val, 42);
+    EXPECT_EQ(ms.val, -1);
+
+    ms.val = 43;
+    iter = input.Insert(input.end(), std::move(ms));
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == --input.end());
+    EXPECT_EQ(iter.Ok()->val, 43);
+    ListValEqual(input, { 42, 43 });
+    EXPECT_EQ(ms.val, -1);
+
+    // insert at the beginning
+    ms.val = 99;
+    iter = input.Insert(input.begin(), std::move(ms));
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == input.begin());
+    EXPECT_EQ(iter.Ok()->val, 99);
+    EXPECT_EQ(ms.val, -1);
+
+    ms.val = 100;
+    iter = input.Insert(input.begin(), std::move(ms));
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == input.begin());
+    EXPECT_EQ(iter.Ok()->val, 100);
+    ListValEqual(input, { 100, 99, 42, 43 });
+    EXPECT_EQ(ms.val, -1);
+
+    // insert near the beginning
+    ms.val = 23;
+    auto old_iter = ++input.begin();
+    iter = input.Insert(old_iter, std::move(ms));
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == ++input.begin());
+    EXPECT_TRUE(iter != old_iter);
+    ListValEqual(input, { 100, 23, 99, 42, 43 });
+    EXPECT_EQ(ms.val, -1);
+
+    // insert near the end
+    ms.val = 77;
+    old_iter = --input.end();
+    iter = input.Insert(old_iter, std::move(ms));
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == --(--input.end()));
+    EXPECT_TRUE(iter != old_iter);
+    ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+    EXPECT_EQ(ms.val, -1);
+
+    ms.val = -100;
+    heap.forceAllocFails = 1;
+    iter = input.Insert(input.begin(), std::move(ms));
+    EXPECT_TRUE(iter.IsErr());
+    ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+    EXPECT_EQ(ms.val, -100);
+}
+
+TEST(ListTest, CopyInsert)
+{
+    radtest::HeapAllocator heap;
+    radtest::AllocWrapper<CopyStruct, radtest::HeapAllocator> alloc(heap);
+    rad::List<CopyStruct,
+              radtest::AllocWrapper<CopyStruct, radtest::HeapAllocator>>
+        input(alloc);
+
+    CopyStruct cs;
+    cs.val = 42;
+    // insert at the end
+    auto /* Res<Iterator> */ iter = input.Insert(input.end(), cs);
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == --input.end());
+    EXPECT_EQ(iter.Ok()->val, 42);
+
+    cs.val = 43;
+    iter = input.Insert(input.end(), cs);
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == --input.end());
+    EXPECT_EQ(iter.Ok()->val, 43);
+    ListValEqual(input, { 42, 43 });
+
+    // insert at the beginning
+    cs.val = 99;
+    iter = input.Insert(input.begin(), cs);
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == input.begin());
+    EXPECT_EQ(iter.Ok()->val, 99);
+
+    cs.val = 100;
+    iter = input.Insert(input.begin(), cs);
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == input.begin());
+    EXPECT_EQ(iter.Ok()->val, 100);
+    ListValEqual(input, { 100, 99, 42, 43 });
+
+    // insert near the beginning
+    cs.val = 23;
+    auto old_iter = ++input.begin();
+    iter = input.Insert(old_iter, cs);
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == ++input.begin());
+    EXPECT_TRUE(iter != old_iter);
+    ListValEqual(input, { 100, 23, 99, 42, 43 });
+
+    // insert near the end
+    cs.val = 77;
+    old_iter = --input.end();
+    iter = input.Insert(old_iter, cs);
+    ASSERT_TRUE(iter);
+    EXPECT_TRUE(iter == --(--input.end()));
+    EXPECT_TRUE(iter != old_iter);
+    ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+
+    cs.val = -100;
+    heap.forceAllocFails = 1;
+    iter = input.Insert(input.begin(), cs);
+    EXPECT_TRUE(iter.IsErr());
+    ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+}
+
 TEST(ListTest, AssignFailure)
 {
     radtest::HeapAllocator heap;

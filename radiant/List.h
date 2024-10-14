@@ -285,7 +285,7 @@ public:
     Err PrependRange(InputRange&& rg)
     {
         return ::rad::detail::ToErr(
-            InsertRangeImpl(cbegin(), static_cast<InputRange&&>(rg)));
+            InsertSomeImpl(cbegin(), rg.begin(), rg.end()));
     }
 
     // Calling PopFront while the container is empty is erroneous behavior.
@@ -307,7 +307,7 @@ public:
     Err AppendRange(InputRange&& rg)
     {
         return ::rad::detail::ToErr(
-            InsertRangeImpl(cend(), static_cast<InputRange&&>(rg)));
+            InsertSomeImpl(cend(), rg.begin(), rg.end()));
     }
 
     // Calling PopBack while the container is empty is erroneous behavior.
@@ -325,8 +325,15 @@ public:
         return ToRes(EmplacePtr(position, static_cast<Args&&>(args)...));
     }
 
-    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _In_ const T& x);
-    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _Inout_ T&& x);
+    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _In_ const T& x)
+    {
+        return ToRes(EmplacePtr(position, x));
+    }
+
+    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _Inout_ T&& x)
+    {
+        return ToRes(EmplacePtr(position, static_cast<T&&>(x)));
+    }
 
     RAD_NODISCARD Res<Iterator> InsertCount(ConstIterator position,
                                             SizeType n,
@@ -335,13 +342,17 @@ public:
     template <class InputIterator>
     RAD_NODISCARD Res<Iterator> InsertSome(ConstIterator position,
                                            InputIterator first,
-                                           InputIterator last);
+                                           InputIterator last)
+
+    {
+        return ToRes(InsertSomeImpl(position, first, last));
+    }
 
     template <typename InputRange>
     RAD_NODISCARD Res<Iterator> InsertRange(ConstIterator position,
                                             InputRange&& rg)
     {
-        return ToRes(InsertRangeImpl(position, static_cast<InputRange&&>(rg)));
+        return ToRes(InsertSomeImpl(position, rg.begin(), rg.end()));
     }
 
 #if RAD_ENABLE_STD
@@ -448,14 +459,13 @@ private:
         return new_node;
     }
 
-    template <typename InputRange>
-    RAD_NODISCARD ::rad::detail::ListBasicNode* InsertRangeImpl(
-        ConstIterator position, InputRange&& rg)
+    template <typename Iter>
+    RAD_NODISCARD ::rad::detail::ListBasicNode* InsertSomeImpl(
+        ConstIterator position, Iter first, Iter last)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
-        auto rg_end = rg.end();
-        for (auto first = rg.begin(); first != rg_end; ++first)
+        for (; first != last; ++first)
         {
             void* ptr = local.EmplacePtr(end_iter, *first);
             if (ptr == nullptr)
