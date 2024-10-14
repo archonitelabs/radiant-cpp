@@ -21,6 +21,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <string>
 #include <utility>
 
 using namespace testing;
@@ -615,4 +616,357 @@ TEST(ListTest, PostIncrPostDecr)
     EXPECT_EQ(*post_cend, 2);
     EXPECT_EQ(*--pre_cend, 1);
     EXPECT_EQ(*post_cend--, 2);
+}
+
+TEST(ListTest, SpliceSomeEmpties)
+{
+    std::array<int, 3> arr = { 101, 203, 304 };
+    {
+        // double empty
+        rad::List<int> source;
+        rad::List<int> dest;
+
+        dest.SpliceSome(dest.begin(), source, source.begin(), source.end());
+        EXPECT_TRUE(source.Empty());
+        EXPECT_TRUE(dest.Empty());
+
+        dest.SpliceSome(dest.begin(),
+                        std::move(source),
+                        source.begin(),
+                        source.end());
+        EXPECT_TRUE(source.Empty());
+        EXPECT_TRUE(dest.Empty());
+
+        dest.SpliceSome(dest.end(), source, source.begin(), source.end());
+        EXPECT_TRUE(source.Empty());
+        EXPECT_TRUE(dest.Empty());
+
+        dest.SpliceSome(dest.end(),
+                        std::move(source),
+                        source.begin(),
+                        source.end());
+        EXPECT_TRUE(source.Empty());
+        EXPECT_TRUE(dest.Empty());
+    }
+
+    {
+        // source empty
+        rad::List<int> source;
+        rad::List<int> dest;
+
+        EXPECT_TRUE(dest.AssignRange(arr).IsOk());
+        ListEqual(dest, { 101, 203, 304 });
+
+        dest.SpliceSome(dest.begin(), source, source.begin(), source.end());
+        EXPECT_TRUE(source.Empty());
+        ListEqual(dest, { 101, 203, 304 });
+
+        dest.SpliceSome(dest.begin(),
+                        std::move(source),
+                        source.begin(),
+                        source.end());
+        EXPECT_TRUE(source.Empty());
+        ListEqual(dest, { 101, 203, 304 });
+    }
+
+    {
+        // dest empty lval
+        rad::List<int> source;
+        rad::List<int> dest;
+
+        EXPECT_TRUE(source.AssignRange(arr).IsOk());
+        ListEqual(source, { 101, 203, 304 });
+
+        dest.SpliceSome(dest.begin(), source, source.begin(), source.end());
+        EXPECT_TRUE(source.Empty());
+        ListEqual(dest, { 101, 203, 304 });
+
+        dest.Clear();
+        EXPECT_TRUE(dest.Empty());
+        EXPECT_TRUE(source.AssignRange(arr).IsOk());
+        ListEqual(source, { 101, 203, 304 });
+
+        dest.SpliceSome(dest.end(), source, source.begin(), source.end());
+        EXPECT_TRUE(source.Empty());
+        ListEqual(dest, { 101, 203, 304 });
+    }
+
+    {
+        // dest empty rval
+        rad::List<int> source;
+        rad::List<int> dest;
+
+        EXPECT_TRUE(source.AssignRange(arr).IsOk());
+        ListEqual(source, { 101, 203, 304 });
+
+        dest.SpliceSome(dest.begin(),
+                        std::move(source),
+                        source.begin(),
+                        source.end());
+        EXPECT_TRUE(source.Empty());
+        ListEqual(dest, { 101, 203, 304 });
+
+        dest.Clear();
+        EXPECT_TRUE(dest.Empty());
+        EXPECT_TRUE(source.AssignRange(arr).IsOk());
+        ListEqual(source, { 101, 203, 304 });
+
+        dest.SpliceSome(dest.end(),
+                        std::move(source),
+                        source.begin(),
+                        source.end());
+        EXPECT_TRUE(source.Empty());
+        ListEqual(dest, { 101, 203, 304 });
+    }
+}
+
+struct SpliceSomeExhaustive_data
+{
+    int src_size;
+    int dest_size;
+    int src_begin;
+    int src_end;
+    int dest_pos;
+    rad::List<int> source;
+    rad::List<int> dest;
+    rad::List<int>::Iterator src_begin_iter;
+    rad::List<int>::Iterator src_end_iter;
+    rad::List<int>::Iterator dest_pos_iter;
+
+    void BuildSrc()
+    {
+        src_begin_iter = source.end(); // .end() is the base case
+        src_end_iter = source.end();
+        for (int i = 0; i < src_size; ++i)
+        {
+            // populate with i offset by 100, so that we can tell src and dest
+            // apart
+            ASSERT_TRUE(source.PushBack(i + 100).IsOk());
+            if (i == src_begin)
+            {
+                src_begin_iter = --source.end();
+            }
+            if (i == src_end)
+            {
+                src_end_iter = --source.end();
+            }
+        }
+    }
+
+    void BuildDest()
+    {
+        dest_pos_iter = dest.end(); // base case
+        for (int i = 0; i < dest_size; ++i)
+        {
+            ASSERT_TRUE(dest.PushBack(i).IsOk());
+            if (i == dest_pos)
+            {
+                dest_pos_iter = --dest.end();
+            }
+        }
+    }
+
+    void VerifySrc(const std::string& case_id)
+    {
+        EXPECT_EQ(source.ExpensiveSize(), src_size - (src_end - src_begin))
+            << case_id;
+        int i = 0;
+        for (auto it = source.begin(); it != source.end(); ++it, ++i)
+        {
+            if (i < src_begin)
+            {
+                EXPECT_EQ(*it, 100 + i) << i << case_id;
+                ;
+                continue;
+            }
+            if (i < src_size - (src_end - src_begin))
+            {
+                EXPECT_EQ(*it, 100 + i + (src_end - src_begin)) << i << case_id;
+                ;
+                continue;
+            }
+            EXPECT_EQ(-1, *it) << "should be unreachable " << i << case_id;
+        }
+    }
+
+    void VerifyDest(const std::string& case_id)
+    {
+        EXPECT_EQ(dest.ExpensiveSize(), dest_size + (src_end - src_begin))
+            << case_id;
+        int i = 0;
+        for (auto it = dest.begin(); it != dest.end(); ++it, ++i)
+        {
+            if (i < dest_pos)
+            {
+                EXPECT_EQ(*it, i) << i << case_id;
+                continue;
+            }
+            if (i < dest_pos + (src_end - src_begin))
+            {
+                int src_idx = (i - dest_pos) + src_begin;
+                EXPECT_EQ(*it, 100 + src_idx) << i << case_id;
+                continue;
+            }
+            if (i < dest_size + (src_end - src_begin))
+            {
+                EXPECT_EQ(*it, i - (src_end - src_begin)) << i << case_id;
+                continue;
+            }
+            EXPECT_EQ(-1, *it) << "should be unreachable " << i << case_id;
+        }
+    }
+
+    void Verify()
+    {
+        // stringifying parameters so that failures have a chance at being
+        // useful.
+        std::string case_id =
+            " case id: " + std::to_string(src_size) + ", " +
+            std::to_string(dest_size) + ", " + std::to_string(src_begin) +
+            ", " + std::to_string(src_end) + ", " + std::to_string(dest_pos);
+
+        VerifySrc(case_id);
+        VerifyDest(case_id);
+    }
+
+    void Test()
+    {
+        // Populate Src with {100, 101, ...} and Dest with {0, 1, ...}.
+        // Then Splice a subrange of Src into a position in Dest.
+        BuildSrc();
+        BuildDest();
+
+        dest.SpliceSome(dest_pos_iter, source, src_begin_iter, src_end_iter);
+
+        Verify();
+    }
+};
+
+TEST(ListTest, SpliceSomeExhaustive)
+{
+    const int kMaxListSize = 3;
+    // dimensions: Source size, dest size, dest pos, source begin, source end
+    // 3 * 3 * 4 * 4 * 4 = 576 iterations (less than that actually)
+    // not testing empty containers, but we are testing empty ranges
+    for (int src_size = 1; src_size <= kMaxListSize; ++src_size)
+    {
+        for (int dest_size = 1; dest_size <= kMaxListSize; ++dest_size)
+        {
+            for (int dest_pos = 0; dest_pos <= dest_size; ++dest_pos)
+            {
+                for (int src_begin = 0; src_begin <= src_size; ++src_begin)
+                {
+                    for (int src_end = src_begin; src_end <= src_size;
+                         ++src_end)
+                    {
+                        SpliceSomeExhaustive_data data{ src_size,
+                                                        dest_size,
+                                                        src_begin,
+                                                        src_end,
+                                                        dest_pos };
+                        data.Test();
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(ListTest, PrependRange)
+{
+    rad::List<int> dest;
+    EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+    std::array<int, 2> source = { 100, 101 };
+
+    EXPECT_TRUE(dest.PrependRange(source).IsOk());
+    ListEqual(dest, { 100, 101, 0, 1, 2, 3 });
+
+    rad::List<int> empty;
+    EXPECT_TRUE(dest.PrependRange(empty).IsOk());
+    ListEqual(dest, { 100, 101, 0, 1, 2, 3 });
+
+    radtest::HeapAllocator heap;
+    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
+    rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        alloc);
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    heap.allocCount = heap.freeCount = 0;
+    // PrependRange doesn't modify the list when allocations fail
+    heap.forceFutureAllocFail = 2;
+    EXPECT_TRUE(list.PrependRange(source).IsErr());
+    EXPECT_EQ(heap.allocCount, 1);
+    EXPECT_EQ(heap.freeCount, 1);
+    ListEqual(list, { 1, 2, 3 });
+}
+
+TEST(ListTest, AppendRange)
+{
+    rad::List<int> dest;
+    EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+    std::array<int, 2> source = { 100, 101 };
+
+    EXPECT_TRUE(dest.AppendRange(source).IsOk());
+    ListEqual(dest, { 0, 1, 2, 3, 100, 101 });
+
+    rad::List<int> empty;
+    EXPECT_TRUE(dest.AppendRange(empty).IsOk());
+    ListEqual(dest, { 0, 1, 2, 3, 100, 101 });
+
+    radtest::HeapAllocator heap;
+    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
+    rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        alloc);
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    heap.allocCount = heap.freeCount = 0;
+    // AppendRange doesn't modify the list when allocations fail
+    heap.forceFutureAllocFail = 2;
+    EXPECT_TRUE(list.AppendRange(source).IsErr());
+    EXPECT_EQ(heap.allocCount, 1);
+    EXPECT_EQ(heap.freeCount, 1);
+    ListEqual(list, { 1, 2, 3 });
+}
+
+TEST(ListTest, InsertRange)
+{
+    std::array<int, 2> source = { 100, 101 };
+
+    {
+        rad::List<int> dest;
+        EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+
+        rad::List<int>::Iterator it;
+        rad::List<int>::Iterator insert_pos;
+        insert_pos = ++dest.begin();
+        it = dest.InsertRange(insert_pos, source);
+        EXPECT_EQ(it, ++dest.begin());
+        EXPECT_NE(it, insert_pos);
+        ListEqual(dest, { 0, 100, 101, 1, 2, 3 });
+
+        rad::List<int> empty;
+        insert_pos = ++dest.begin();
+        it = dest.InsertRange(insert_pos, empty);
+        EXPECT_EQ(it, ++dest.begin());
+        EXPECT_EQ(it, insert_pos);
+        ListEqual(dest, { 0, 100, 101, 1, 2, 3 });
+    }
+    {
+        radtest::HeapAllocator heap;
+        radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
+        rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+            alloc);
+
+        EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        heap.allocCount = heap.freeCount = 0;
+        auto insert_pos = ++list.begin();
+        // InsertRange doesn't modify the list when allocations fail
+        heap.forceFutureAllocFail = 2;
+        auto it = list.InsertRange(insert_pos, source);
+        EXPECT_EQ(heap.allocCount, 1);
+        EXPECT_EQ(heap.freeCount, 1);
+        EXPECT_EQ(it, list.end());
+        EXPECT_NE(insert_pos, it);
+        ListEqual(list, { 1, 2, 3 });
+    }
 }

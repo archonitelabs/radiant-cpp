@@ -20,9 +20,9 @@
 #include "radiant/Res.h"
 
 #if RAD_ENABLE_STD
-#include <iterator>         // TODO
-#include <initializer_list> // TODO
-#endif                      // RAD_ENABLE_STD
+#include <iterator>
+#include <initializer_list>
+#endif // RAD_ENABLE_STD
 
 namespace rad
 {
@@ -231,7 +231,7 @@ public:
     ListConstIterator() = default;
 
     explicit ListConstIterator(const ListBasicNode* node)
-        : m_node(node)
+        : m_node(const_cast<ListBasicNode*>(node))
     {
     }
 
@@ -298,7 +298,7 @@ public:
 
 private:
 
-    const ListBasicNode* m_node = nullptr;
+    ListBasicNode* m_node = nullptr;
 
     template <typename U, typename TAllocator>
     friend class List;
@@ -317,12 +317,6 @@ public:
     ~ListUntyped() = default;
     ListUntyped& operator=(_In_ const ListUntyped& x) = delete;
     ListUntyped& operator=(_Inout_ ListUntyped&& x) noexcept = delete;
-
-    // [list.capacity], capacity
-    RAD_NODISCARD bool Empty() const noexcept
-    {
-        return m_head.m_next == &m_head; // TODO: delete this one?
-    }
 
     // O(N) operation, renamed so that people don't
     // assume it is cheap and make things accidentally
@@ -373,9 +367,30 @@ public:
         pos->m_prev = i;
     }
 
-    void SpliceSome(_Inout_ ListBasicNode* position,
-                    _Inout_ ListBasicNode* first,
-                    _Inout_ ListBasicNode* last);
+    ListBasicNode* SpliceSome(_Inout_ ListBasicNode* position,
+                              _Inout_ ListBasicNode* first,
+                              _Inout_ ListBasicNode* last)
+    {
+        if (first == last)
+        {
+            return position;
+        }
+        last = last->m_prev;
+        last->CheckSanityBeforeRelinking();
+        first->CheckSanityBeforeRelinking();
+
+        first->m_prev->m_next = last->m_next;
+        last->m_next->m_prev = first->m_prev;
+
+        last->m_next = position;
+        first->m_prev = position->m_prev;
+
+        position->CheckSanityBeforeRelinking();
+        position->m_prev->m_next = first;
+        position->m_prev = last;
+
+        return first;
+    }
 
     void Reverse() noexcept;
 
@@ -482,6 +497,8 @@ public:
     }
 
     List(_In_ const List& x) = delete;
+
+    Res<List> Clone();
 
     List(_Inout_ List&& x) noexcept
     {
@@ -645,7 +662,11 @@ public:
     }
 
     template <typename InputRange>
-    Err PrependRange(InputRange&& rg);
+    Err PrependRange(InputRange&& rg)
+    {
+        return ::rad::detail::ToErr(
+            InsertRangeImpl(cbegin(), static_cast<InputRange&&>(rg)));
+    }
 
     // Calling PopFront while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
@@ -663,7 +684,11 @@ public:
     }
 
     template <typename InputRange>
-    Err AppendRange(InputRange&& rg);
+    Err AppendRange(InputRange&& rg)
+    {
+        return ::rad::detail::ToErr(
+            InsertRangeImpl(cend(), static_cast<InputRange&&>(rg)));
+    }
 
     // Calling PopBack while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
@@ -693,8 +718,12 @@ public:
                                       InputIterator first,
                                       InputIterator last);
 
+    // TODO: return value is ambiguous when inserting at this->end()
     template <typename InputRange>
-    RAD_NODISCARD Iterator InsertRange(ConstIterator position, InputRange&& rg);
+    RAD_NODISCARD Iterator InsertRange(ConstIterator position, InputRange&& rg)
+    {
+        return ToIter(InsertRangeImpl(position, static_cast<InputRange&&>(rg)));
+    }
 
 #if RAD_ENABLE_STD
     RAD_NODISCARD Iterator InsertInitializerList(ConstIterator position,
@@ -743,17 +772,36 @@ public:
     void SpliceSome(ConstIterator position,
                     _Inout_ List& x,
                     ConstIterator first,
-                    ConstIterator last);
+                    ConstIterator last)
+    {
+        // List parameter is useful as a way to attest that you have mutable
+        // access to the source list.  If we want to support unequal allocators,
+        // then we'll need to deal with that here and add an error channel.
+        RAD_UNUSED(x);
+        m_storage.Second().SpliceSome(position.m_node,
+                                      first.m_node,
+                                      last.m_node);
+    }
+
     void SpliceSome(ConstIterator position,
                     _Inout_ List&& x,
                     ConstIterator first,
-                    ConstIterator last);
+                    ConstIterator last)
+    {
+        // List parameter is useful as a way to attest that you have mutable
+        // access to the source list.  If we want to support unequal allocators,
+        // then we'll need to deal with that here and add an error channel.
+        RAD_UNUSED(x);
+        m_storage.Second().SpliceSome(position.m_node,
+                                      first.m_node,
+                                      last.m_node);
+    }
 
     void Reverse() noexcept;
 
 private:
 
-    Iterator ToIter(::rad::detail::ListNode<T>* ptr)
+    Iterator ToIter(::rad::detail::ListBasicNode* ptr)
     {
         if (ptr == nullptr)
         {
@@ -775,17 +823,33 @@ private:
         ::rad::detail::ListNode<T>* new_node = new (
             storage)::rad::detail::ListNode<T>(static_cast<Args&&>(args)...);
 
-        // The position iterator that comes in is const, but this container
-        // is non-const.  There's a precondition that the position iterator
-        // is pointing into our container, so we aren't breaking const
-        // correctness with this cast.  We could get the same results (though
-        // slower) by doing an ->m_prev->m_next.
-        ::rad::detail::ListBasicNode* mut_pos =
-            const_cast<::rad::detail::ListBasicNode*>(position.m_node);
         // insert the new node before passed in position
-        m_storage.Second().AttachNewNode(mut_pos, new_node);
+        m_storage.Second().AttachNewNode(position.m_node, new_node);
 
         return new_node;
+    }
+
+    template <typename InputRange>
+    RAD_NODISCARD ::rad::detail::ListBasicNode* InsertRangeImpl(
+        ConstIterator position, InputRange&& rg)
+    {
+        // TODO: deal with rvalue ranges and dangling
+        List local(m_storage.First());
+        auto end_iter = local.cend();
+        auto rg_end = rg.end();
+        for (auto first = rg.begin(); first != rg_end; ++first)
+        {
+            void* ptr = local.EmplacePtr(end_iter, *first);
+            if (ptr == nullptr)
+            {
+                return nullptr;
+            }
+        }
+        ::rad::detail::ListBasicNode* new_pos =
+            m_storage.Second().SpliceSome(position.m_node,
+                                          local.begin().m_node,
+                                          local.end().m_node);
+        return new_pos;
     }
 
     Rebound ReboundAlloc()
