@@ -315,39 +315,38 @@ public:
     // release mode we will instead do nothing.
     void PopBack();
 
-    // Insert and Emplace functions return the end iterator on failure.
     // The Insert and Emplace functions provide the strong error
     // guarantee.  If they fail, then the function returns without
     // changing the container, invalidating iterators, or invalidating
     // references.
     template <class... Args>
-    RAD_NODISCARD Iterator Emplace(ConstIterator position, Args&&... args)
+    RAD_NODISCARD Res<Iterator> Emplace(ConstIterator position, Args&&... args)
     {
-        return ToIter(EmplacePtr(position, static_cast<Args&&>(args)...));
+        return ToRes(EmplacePtr(position, static_cast<Args&&>(args)...));
     }
 
-    RAD_NODISCARD Iterator Insert(ConstIterator position, _In_ const T& x);
-    RAD_NODISCARD Iterator Insert(ConstIterator position, _Inout_ T&& x);
+    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _In_ const T& x);
+    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _Inout_ T&& x);
 
-    RAD_NODISCARD Iterator InsertCount(ConstIterator position,
-                                       SizeType n,
-                                       _In_ const T& x);
+    RAD_NODISCARD Res<Iterator> InsertCount(ConstIterator position,
+                                            SizeType n,
+                                            _In_ const T& x);
 
     template <class InputIterator>
-    RAD_NODISCARD Iterator InsertSome(ConstIterator position,
-                                      InputIterator first,
-                                      InputIterator last);
+    RAD_NODISCARD Res<Iterator> InsertSome(ConstIterator position,
+                                           InputIterator first,
+                                           InputIterator last);
 
-    // TODO: return value is ambiguous when inserting at this->end()
     template <typename InputRange>
-    RAD_NODISCARD Iterator InsertRange(ConstIterator position, InputRange&& rg)
+    RAD_NODISCARD Res<Iterator> InsertRange(ConstIterator position,
+                                            InputRange&& rg)
     {
-        return ToIter(InsertRangeImpl(position, static_cast<InputRange&&>(rg)));
+        return ToRes(InsertRangeImpl(position, static_cast<InputRange&&>(rg)));
     }
 
 #if RAD_ENABLE_STD
-    RAD_NODISCARD Iterator InsertInitializerList(ConstIterator position,
-                                                 std::initializer_list<T> il);
+    RAD_NODISCARD Res<Iterator> InsertInitializerList(
+        ConstIterator position, std::initializer_list<T> il);
 #endif
 
     Iterator EraseOne(ConstIterator position);
@@ -421,11 +420,11 @@ public:
 
 private:
 
-    Iterator ToIter(::rad::detail::ListBasicNode* ptr)
+    Res<Iterator> ToRes(::rad::detail::ListBasicNode* ptr)
     {
         if (ptr == nullptr)
         {
-            return Iterator(&m_storage.Second().m_head); // end iterator
+            return Error::NoMemory;
         }
         return Iterator(ptr);
     }

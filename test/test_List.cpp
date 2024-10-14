@@ -473,29 +473,33 @@ TEST(ListTest, Emplace)
     rad::List<ImmovableStruct,
               radtest::AllocWrapper<ImmovableStruct, radtest::HeapAllocator>>
         input(alloc);
-    decltype(input.begin()) iter;
 
     // emplace at the end
-    iter = input.Emplace(input.end(), 42);
+    auto /* Res<Iterator> */ iter = input.Emplace(input.end(), 42);
+    ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == --input.end());
-    EXPECT_EQ(iter->val, 42);
+    EXPECT_EQ(iter.Ok()->val, 42);
     iter = input.Emplace(input.end(), 43);
+    ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == --input.end());
-    EXPECT_EQ(iter->val, 43);
+    EXPECT_EQ(iter.Ok()->val, 43);
     ListValEqual(input, { 42, 43 });
 
     // emplace at the beginning
     iter = input.Emplace(input.begin(), 99);
+    ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == input.begin());
-    EXPECT_EQ(iter->val, 99);
+    EXPECT_EQ(iter.Ok()->val, 99);
     iter = input.Emplace(input.begin(), 100);
+    ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == input.begin());
-    EXPECT_EQ(iter->val, 100);
+    EXPECT_EQ(iter.Ok()->val, 100);
     ListValEqual(input, { 100, 99, 42, 43 });
 
     // emplace near the beginning
     auto old_iter = ++input.begin();
     iter = input.Emplace(old_iter, 23);
+    ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == ++input.begin());
     EXPECT_TRUE(iter != old_iter);
     ListValEqual(input, { 100, 23, 99, 42, 43 });
@@ -503,13 +507,14 @@ TEST(ListTest, Emplace)
     // emplace near the end
     old_iter = --input.end();
     iter = input.Emplace(old_iter, 77);
+    ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == --(--input.end()));
     EXPECT_TRUE(iter != old_iter);
     ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
 
     heap.forceAllocFails = 1;
     iter = input.Emplace(input.begin(), -1);
-    EXPECT_TRUE(iter == input.end());
+    EXPECT_TRUE(iter.IsErr());
     ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
 }
 
@@ -936,7 +941,7 @@ TEST(ListTest, InsertRange)
         rad::List<int> dest;
         EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
 
-        rad::List<int>::Iterator it;
+        rad::Res<rad::List<int>::Iterator> it;
         rad::List<int>::Iterator insert_pos;
         insert_pos = ++dest.begin();
         it = dest.InsertRange(insert_pos, source);
@@ -965,7 +970,7 @@ TEST(ListTest, InsertRange)
         auto it = list.InsertRange(insert_pos, source);
         EXPECT_EQ(heap.allocCount, 1);
         EXPECT_EQ(heap.freeCount, 1);
-        EXPECT_EQ(it, list.end());
+        EXPECT_TRUE(it.IsErr());
         EXPECT_NE(insert_pos, it);
         ListEqual(list, { 1, 2, 3 });
     }
