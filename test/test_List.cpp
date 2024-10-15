@@ -1929,3 +1929,40 @@ TEST(ListTest, Reverse)
     list.Reverse();
     ListEqual(list, { 4, 3, 2, 1 });
 }
+
+TEST(ListTest, ReverseIterators)
+{
+    {
+        rad::List<int> list1;
+        EXPECT_EQ(list1.rbegin(), list1.rend());
+
+        rad::List<int> list2;
+        EXPECT_TRUE(list2.AssignSome(list1.rbegin(), list1.rend()).IsOk());
+        EXPECT_TRUE(list2.Empty());
+    }
+    {
+        rad::List<int> list1;
+        EXPECT_TRUE(list1.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+
+        rad::List<int> list2;
+        EXPECT_TRUE(list2.AssignSome(list1.rbegin(), list1.rend()).IsOk());
+        ListEqual(list2, { 5, 4, 3, 2, 1 });
+    }
+
+    {
+        rad::List<int> list1;
+        EXPECT_EQ(list1.crbegin(), list1.crend());
+
+        rad::List<int> list2;
+        EXPECT_TRUE(list2.AssignSome(list1.crbegin(), list1.crend()).IsOk());
+        EXPECT_TRUE(list2.Empty());
+    }
+    {
+        rad::List<int> list1;
+        EXPECT_TRUE(list1.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+
+        rad::List<int> list2;
+        EXPECT_TRUE(list2.AssignSome(list1.crbegin(), list1.crend()).IsOk());
+        ListEqual(list2, { 5, 4, 3, 2, 1 });
+    }
+}

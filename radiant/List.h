@@ -16,6 +16,7 @@
 
 #include "radiant/TotallyRad.h"
 #include "radiant/EmptyOptimizedPair.h"
+#include "radiant/Iterator.h"
 #include "radiant/Memory.h"
 #include "radiant/Res.h"
 #include "radiant/detail/ListOperations.h"
@@ -48,11 +49,6 @@ namespace rad
     you won't be able to use some offset based pointer to do shared memory
     things with this container.
 
-    Reverse iterators aren't currently supported, though there isn't any reason
-    that they couldn't be supported.  The return on investment isn't currently
-    there. Same story for unique, merge, and sort. TODO: reverse iterators are
-    cheap in radiant.
-
     Removed size() related functions, as making size() O(1) interferes with
     efficient splicing, and having size() be O(N) is too much of a foot gun. The
     standard made a mistake here.  Empty() is still present and fine, and
@@ -83,9 +79,6 @@ namespace rad
     SpliceSome, to better make their intent clear to readers without needing to
     carefully count the number of parameters.
 
-    TODO: implementation, doxygen, formatting, use Res / Result instead of
-    NTSTATUS
-
     @tparam T - Value type held by the list
     @tparam TAllocator - Allocator to use.
 */
@@ -105,6 +98,8 @@ public:
     using DifferenceType = ptrdiff_t;
     using Iterator = ::rad::detail::ListIterator<T>;
     using ConstIterator = ::rad::detail::ListConstIterator<T>;
+    using ReverseIterator = ::rad::ReverseIterator<Iterator>;
+    using ConstReverseIterator = ::rad::ReverseIterator<ConstIterator>;
 
     using Rebound =
         typename TAllocator::template Rebind<::rad::detail::ListNode<T>>::Other;
@@ -227,6 +222,26 @@ public:
     RAD_NODISCARD ConstIterator cend() const noexcept
     {
         return ConstIterator(&m_storage.Second().m_head);
+    }
+
+    RAD_NODISCARD ReverseIterator rbegin() noexcept
+    {
+        return ReverseIterator(end());
+    }
+
+    RAD_NODISCARD ReverseIterator rend() noexcept
+    {
+        return ReverseIterator(begin());
+    }
+
+    RAD_NODISCARD ConstReverseIterator crbegin() noexcept
+    {
+        return ConstReverseIterator(cend());
+    }
+
+    RAD_NODISCARD ConstReverseIterator crend() noexcept
+    {
+        return ConstReverseIterator(cbegin());
     }
 
     // [list.capacity], capacity

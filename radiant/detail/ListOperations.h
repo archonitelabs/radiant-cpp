@@ -137,8 +137,8 @@ public:
 
     using ValueType = T;
     using DifferenceType = ptrdiff_t;
-    using Pointer = T*;
-    using Reference = T&;
+    using PointerType = T*;
+    using ReferenceType = T&;
 
     ListIterator() = default;
 
@@ -163,13 +163,13 @@ public:
         return m_node != rhs.m_node;
     }
 
-    Reference operator*() const noexcept
+    ReferenceType operator*() const noexcept
     {
         m_node->AssertOnEmpty();
         return static_cast<ListNode<T>*>(m_node)->m_elt;
     }
 
-    Pointer operator->() const noexcept
+    PointerType operator->() const noexcept
     {
         m_node->AssertOnEmpty();
         return &static_cast<ListNode<T>*>(m_node)->m_elt;
@@ -222,8 +222,8 @@ public:
 
     using ValueType = const T;
     using DifferenceType = ptrdiff_t;
-    using Pointer = const T*;
-    using Reference = const T&;
+    using PointerType = const T*;
+    using ReferenceType = const T&;
 
     ListConstIterator() = default;
 
@@ -255,13 +255,13 @@ public:
         return m_node != rhs.m_node;
     }
 
-    Reference operator*() const noexcept
+    ReferenceType operator*() const noexcept
     {
         m_node->AssertOnEmpty();
         return static_cast<const ListNode<T>*>(m_node)->m_elt;
     }
 
-    Pointer operator->() const noexcept
+    PointerType operator->() const noexcept
     {
         m_node->AssertOnEmpty();
         return &static_cast<const ListNode<T>*>(m_node)->m_elt;
