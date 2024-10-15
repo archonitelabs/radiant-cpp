@@ -208,6 +208,7 @@ struct MoveStruct
     {
         val = other.val;
         other.val = -2;
+        return *this;
     }
 
     int val = 42;
@@ -859,6 +860,16 @@ TEST(ListTest, SpliceSomeEmpties)
 
 struct SpliceSomeExhaustive_data
 {
+    SpliceSomeExhaustive_data(
+        int src_size, int dest_size, int src_begin, int src_end, int dest_pos)
+        : src_size(src_size),
+          dest_size(dest_size),
+          src_begin(src_begin),
+          src_end(src_end),
+          dest_pos(dest_pos)
+    {
+    }
+
     int src_size;
     int dest_size;
     int src_begin;
@@ -1039,6 +1050,17 @@ TEST(ListTest, SpliceSomeExhaustive)
 
 struct SpliceOneExhaustive_data
 {
+    SpliceOneExhaustive_data(int src_size,
+                             int dest_size,
+                             int src_pos,
+                             int dest_pos)
+        : src_size(src_size),
+          dest_size(dest_size),
+          src_pos(src_pos),
+          dest_pos(dest_pos)
+    {
+    }
+
     int src_size;
     int dest_size;
     int src_pos;
@@ -1201,6 +1223,13 @@ TEST(ListTest, SpliceOneExhaustive)
 
 struct SpliceAllExhaustive_data
 {
+    SpliceAllExhaustive_data(int src_size, int dest_size, int dest_pos)
+        : src_size(src_size),
+          dest_size(dest_size),
+          dest_pos(dest_pos)
+    {
+    }
+
     int src_size;
     int dest_size;
     int dest_pos;

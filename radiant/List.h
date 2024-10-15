@@ -121,15 +121,8 @@ public:
     Res<List> Clone()
     {
         List local(m_storage.First());
-        Err e = local.AssignSome(this->begin(), this->end());
-        if (e.IsErr())
-        {
-            return Res<List>(ResErrTag, e.Err());
-        }
-        else
-        {
-            return Res<List>(ResOkTag, std::move(local));
-        }
+        return local.AssignSome(this->begin(), this->end())
+            .OnOk(static_cast<List&&>(local));
     }
 
     List(_Inout_ List&& x) noexcept
