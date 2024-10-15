@@ -386,12 +386,89 @@ public:
     }
 #endif
 
-    Iterator EraseOne(ConstIterator position);
-    Iterator EraseSome(ConstIterator position, ConstIterator last);
+    Iterator EraseOne(ConstIterator position)
+    {
+        if (position == cend())
+        {
+            return end();
+        }
+        ::rad::detail::ListBasicNode* cur = position.m_node;
+        ::rad::detail::ListBasicNode* retnode = cur->m_next;
+        cur->CheckSanityBeforeRelinking();
+        cur->m_prev->m_next = cur->m_next;
+        cur->m_next->m_prev = cur->m_prev;
 
-    SizeType EraseValue(const T& value);
+        ::rad::detail::ListNode<T>* typed =
+            static_cast<::rad::detail::ListNode<T>*>(cur);
+        typed->~ListNode();
+        ReboundAlloc().Free(typed);
+
+        return Iterator(retnode);
+    }
+
+    Iterator EraseSome(ConstIterator position, ConstIterator last)
+    {
+        ::rad::detail::ListBasicNode* cur = position.m_node;
+        ::rad::detail::ListBasicNode* end = last.m_node;
+        if (cur == end)
+        {
+            return Iterator(end);
+        }
+        cur->CheckSanityBeforeRelinking();
+        end->CheckSanityBeforeRelinking();
+        cur->m_prev->m_next = end;
+        end->m_prev = cur->m_prev;
+
+        while (cur != end)
+        {
+            ::rad::detail::ListNode<T>* typed =
+                static_cast<::rad::detail::ListNode<T>*>(cur);
+            cur = cur->m_next;
+
+            typed->~ListNode();
+            ReboundAlloc().Free(typed);
+        }
+        return Iterator(end);
+    }
+
+    SizeType EraseValue(const T& value)
+    {
+        SizeType count = 0;
+        Iterator i = begin();
+        while (i != end())
+        {
+            if (*i == value)
+            {
+                i = EraseOne(i);
+                ++count;
+            }
+            else
+            {
+                ++i;
+            }
+        }
+        return count;
+    }
+
     template <typename Predicate>
-    SizeType EraseIf(Predicate pred);
+    SizeType EraseIf(Predicate pred)
+    {
+        SizeType count = 0;
+        Iterator i = begin();
+        while (i != end())
+        {
+            if (pred(*i))
+            {
+                i = EraseOne(i);
+                ++count;
+            }
+            else
+            {
+                ++i;
+            }
+        }
+        return count;
+    }
 
     void Swap(_Inout_ List& x) noexcept
     {
@@ -405,17 +482,7 @@ public:
 
     void Clear() noexcept
     {
-        ::rad::detail::ListBasicNode* cur = m_storage.Second().m_head.m_next;
-        while (cur != &m_storage.Second().m_head)
-        {
-            ::rad::detail::ListNode<T>* typed =
-                static_cast<::rad::detail::ListNode<T>*>(cur);
-            cur = cur->m_next; // TODO suppress C6001 uninit memory warning?
-
-            typed->~ListNode();
-            ReboundAlloc().Free(typed);
-        }
-        m_storage.Second().m_head.Unlink();
+        EraseSome(begin(), end());
     }
 
     // The list parameter to the splice functions is mostly unused.  It's

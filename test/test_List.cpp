@@ -924,13 +924,11 @@ struct SpliceSomeExhaustive_data
             if (i < src_begin)
             {
                 EXPECT_EQ(*it, 100 + i) << i << case_id;
-                ;
                 continue;
             }
             if (i < src_size - (src_end - src_begin))
             {
                 EXPECT_EQ(*it, 100 + i + (src_end - src_begin)) << i << case_id;
-                ;
                 continue;
             }
             EXPECT_EQ(-1, *it) << "should be unreachable " << i << case_id;
@@ -1108,13 +1106,11 @@ struct SpliceOneExhaustive_data
             if (i < src_pos)
             {
                 EXPECT_EQ(*it, 100 + i) << i << case_id;
-                ;
                 continue;
             }
             if (i < src_size - 1)
             {
                 EXPECT_EQ(*it, 100 + i + 1) << i << case_id;
-                ;
                 continue;
             }
             EXPECT_EQ(-1, *it) << "should be unreachable " << i << case_id;
@@ -1622,4 +1618,253 @@ TEST(ListTest, Clone)
         EXPECT_EQ(heap.freeCount, 1);
         EXPECT_TRUE(fail_clone.IsErr());
     }
+}
+
+struct EraseSomeExhaustive_data
+{
+    EraseSomeExhaustive_data(int size, int begin, int end)
+        : size(size),
+          begin(begin),
+          end(end)
+    {
+    }
+
+    int size;
+    int begin;
+    int end;
+    rad::List<int> list;
+    rad::List<int>::Iterator begin_iter;
+    rad::List<int>::Iterator end_iter;
+
+    void BuildList()
+    {
+        begin_iter = list.end(); // .end() is the base case
+        end_iter = list.end();
+        for (int i = 0; i < size; ++i)
+        {
+            ASSERT_TRUE(list.PushBack(i).IsOk());
+            if (i == begin)
+            {
+                begin_iter = --list.end();
+            }
+            if (i == end)
+            {
+                end_iter = --list.end();
+            }
+        }
+    }
+
+    void Verify(const std::string& case_id)
+    {
+        EXPECT_EQ(list.ExpensiveSize(), size - (end - begin)) << case_id;
+        int i = 0;
+        for (auto it = list.begin(); it != list.end(); ++it, ++i)
+        {
+            if (i < begin)
+            {
+                EXPECT_EQ(*it, i) << i << case_id;
+                continue;
+            }
+            if (i < size - (end - begin))
+            {
+                EXPECT_EQ(*it, i + (end - begin)) << i << case_id;
+                continue;
+            }
+            EXPECT_EQ(-1, *it) << "should be unreachable " << i << case_id;
+        }
+    }
+
+    void Test()
+    {
+        // stringifying parameters so that failures have a chance at being
+        // useful.
+        std::string case_id = " case id: " + std::to_string(size) + ", " +
+                              std::to_string(begin) + ", " +
+                              std::to_string(end);
+
+        BuildList();
+
+        auto ret_iter = list.EraseSome(begin_iter, end_iter);
+        EXPECT_EQ(ret_iter, end_iter) << case_id;
+
+        Verify(case_id);
+    }
+};
+
+TEST(ListTest, EraseSomeExhaustive)
+{
+    const int kMaxListSize = 4;
+    // dimensions: Size, begin, end
+    // 5 * 5 * 5 = 125 iterations (less than that actually)
+    for (int size = 0; size <= kMaxListSize; ++size)
+    {
+        for (int begin = 0; begin <= size; ++begin)
+        {
+            for (int end = begin; end <= size; ++end)
+            {
+                EraseSomeExhaustive_data data{ size, begin, end };
+                data.Test();
+            }
+        }
+    }
+}
+
+struct EraseOneExhaustive_data
+{
+    EraseOneExhaustive_data(int size, int pos)
+        : size(size),
+          pos(pos)
+    {
+    }
+
+    int size;
+    int pos;
+    rad::List<int> list;
+    rad::List<int>::Iterator pos_iter;
+
+    void BuildList()
+    {
+        pos_iter = list.end(); // .end() is the base case
+        for (int i = 0; i < size; ++i)
+        {
+            ASSERT_TRUE(list.PushBack(i).IsOk());
+            if (i == pos)
+            {
+                pos_iter = --list.end();
+            }
+        }
+    }
+
+    void Verify(const std::string& case_id)
+    {
+        EXPECT_EQ(list.ExpensiveSize(), size - 1) << case_id;
+        int i = 0;
+        for (auto it = list.begin(); it != list.end(); ++it, ++i)
+        {
+            if (i < pos)
+            {
+                EXPECT_EQ(*it, i) << i << case_id;
+                continue;
+            }
+            if (i < size - 1)
+            {
+                EXPECT_EQ(*it, i + 1) << i << case_id;
+                continue;
+            }
+            EXPECT_EQ(-1, *it) << "should be unreachable " << i << case_id;
+        }
+    }
+
+    void Test()
+    {
+        // stringifying parameters so that failures have a chance at being
+        // useful.
+        std::string case_id =
+            " case id: " + std::to_string(size) + ", " + std::to_string(pos);
+
+        BuildList();
+
+        rad::List<int>::Iterator expected_iter = pos_iter;
+        ++expected_iter;
+
+        auto ret_iter = list.EraseOne(pos_iter);
+        EXPECT_EQ(ret_iter, expected_iter);
+
+        Verify(case_id);
+    }
+};
+
+TEST(ListTest, EraseOneExhaustive)
+{
+    const int kMaxListSize = 4;
+    // dimensions: Size, pos.  Not testing empty containers or end iterators
+    // 4 * 4  = 16 iterations (less than that actually)
+    for (int size = 1; size <= kMaxListSize; ++size)
+    {
+        for (int pos = 0; pos < size; ++pos)
+        {
+            EraseOneExhaustive_data data{ size, pos };
+            data.Test();
+        }
+    }
+}
+
+TEST(ListTest, EraseOneEnd)
+{
+    rad::List<int> list;
+    EXPECT_EQ(list.end(), list.EraseOne(list.end()));
+    EXPECT_TRUE(list.Empty());
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    EXPECT_EQ(list.end(), list.EraseOne(list.end()));
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2 }).IsOk());
+    EXPECT_EQ(list.end(), list.EraseOne(list.end()));
+    ListEqual(list, { 1, 2 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    EXPECT_EQ(list.end(), list.EraseOne(list.end()));
+    ListEqual(list, { 1, 2, 3 });
+}
+
+TEST(ListTest, EraseValue)
+{
+    rad::List<int> list;
+    EXPECT_EQ(0u, list.EraseValue(42));
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    EXPECT_EQ(0u, list.EraseValue(42));
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 42 }).IsOk());
+    EXPECT_EQ(1u, list.EraseValue(42));
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 42, 1 }).IsOk());
+    EXPECT_EQ(1u, list.EraseValue(42));
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 42, 42 }).IsOk());
+    EXPECT_EQ(2u, list.EraseValue(42));
+    EXPECT_TRUE(list.Empty());
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 42, 1 }).IsOk());
+    EXPECT_EQ(1u, list.EraseValue(42));
+    ListEqual(list, { 1, 1 });
+
+    EXPECT_TRUE(list.AssignCount(50, 42).IsOk());
+    EXPECT_EQ(50u, list.EraseValue(42));
+    EXPECT_TRUE(list.Empty());
+}
+
+TEST(ListTest, EraseIf)
+{
+    auto is_even = [](int val) { return val % 2 == 0; };
+    rad::List<int> list;
+    EXPECT_EQ(0u, list.EraseIf(is_even));
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    EXPECT_EQ(0u, list.EraseIf(is_even));
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 42 }).IsOk());
+    EXPECT_EQ(1u, list.EraseIf(is_even));
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 42, 1 }).IsOk());
+    EXPECT_EQ(1u, list.EraseIf(is_even));
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 42, 42 }).IsOk());
+    EXPECT_EQ(2u, list.EraseIf(is_even));
+    EXPECT_TRUE(list.Empty());
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 42, 1 }).IsOk());
+    EXPECT_EQ(1u, list.EraseIf(is_even));
+    ListEqual(list, { 1, 1 });
+
+    EXPECT_TRUE(list.AssignCount(50, 42).IsOk());
+    EXPECT_EQ(50u, list.EraseIf(is_even));
+    EXPECT_TRUE(list.Empty());
 }
