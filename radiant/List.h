@@ -297,7 +297,10 @@ public:
     // Calling PopFront while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
     // release mode we will instead do nothing.
-    void PopFront();
+    void PopFront()
+    {
+        EraseOne(begin());
+    }
 
     Err PushBack(_In_ const T& x)
     {
@@ -319,7 +322,10 @@ public:
     // Calling PopBack while the container is empty is erroneous behavior.
     // It's wrong to do it, and we can diagnose it in debug mode, but in
     // release mode we will instead do nothing.
-    void PopBack();
+    void PopBack()
+    {
+        EraseOne(--end());
+    }
 
     // The Insert and Emplace functions provide the strong error
     // guarantee.  If they fail, then the function returns without

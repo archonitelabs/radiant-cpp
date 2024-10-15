@@ -26,6 +26,9 @@
 
 using namespace testing;
 
+// TODO: forward and input iterators.  Proxy iterators?  Non-trivial types like
+// List<List<int>>
+
 // ensure no_unique_address is doing what we want
 static_assert(sizeof(rad::detail::ListUntyped) == 2 * sizeof(void*),
               "unexpected object size");
@@ -33,8 +36,6 @@ static_assert(sizeof(rad::List<int>) == 2 * sizeof(void*),
               "unexpected object size");
 static_assert(sizeof(rad::detail::ListUntyped) == sizeof(rad::List<int>),
               "unexpected object size");
-
-// TODO: don't forget to test iterator operations and iterator stability!
 
 template <typename T, typename Alloc>
 void ListEqual(const rad::List<T, Alloc>& list,
@@ -424,7 +425,6 @@ TEST(ListTest, RangeForLoop)
 
 TEST(ListTest, AssignSome)
 {
-    // TODO: forward and input iterators.  Proxy iterators?
     rad::List<int> input;
     int* np = nullptr;
     EXPECT_TRUE(input.AssignSome(np, np).IsOk());
@@ -441,7 +441,6 @@ TEST(ListTest, AssignSome)
 
 TEST(ListTest, AssignRange)
 {
-    // TODO: forward and input iterators.  Proxy iterators?
     rad::List<int> input;
     rad::Span<int> empty;
 
@@ -1575,7 +1574,6 @@ TEST(ListTest, InsertCount)
 
 TEST(ListTest, Clone)
 {
-    // TODO: test that allocator is copied.  Test clone failure.
     {
         rad::List<int> li;
 
@@ -1866,5 +1864,45 @@ TEST(ListTest, EraseIf)
 
     EXPECT_TRUE(list.AssignCount(50, 42).IsOk());
     EXPECT_EQ(50u, list.EraseIf(is_even));
+    EXPECT_TRUE(list.Empty());
+}
+
+TEST(ListTest, PopFront)
+{
+    rad::List<int> list;
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+
+    list.PopFront();
+    ListEqual(list, { 2, 3, 4, 5 });
+    list.PopFront();
+    ListEqual(list, { 3, 4, 5 });
+    list.PopFront();
+    ListEqual(list, { 4, 5 });
+    list.PopFront();
+    ListEqual(list, { 5 });
+    list.PopFront();
+    EXPECT_TRUE(list.Empty());
+
+    list.PopFront(); // TODO: squelch asserts
+    EXPECT_TRUE(list.Empty());
+}
+
+TEST(ListTest, PopBack)
+{
+    rad::List<int> list;
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+
+    list.PopBack();
+    ListEqual(list, { 1, 2, 3, 4 });
+    list.PopBack();
+    ListEqual(list, { 1, 2, 3 });
+    list.PopBack();
+    ListEqual(list, { 1, 2 });
+    list.PopBack();
+    ListEqual(list, { 1 });
+    list.PopBack();
+    EXPECT_TRUE(list.Empty());
+
+    list.PopBack(); // TODO: squelch asserts
     EXPECT_TRUE(list.Empty());
 }
