@@ -389,7 +389,23 @@ public:
         return first;
     }
 
-    void Reverse() noexcept;
+    void Reverse() noexcept
+    {
+        if (m_head.m_next == m_head.m_prev)
+        {
+            return;
+        }
+        ListBasicNode* cur = &m_head;
+        do
+        {
+            ListBasicNode* temp = cur->m_next;
+            cur->m_next = cur->m_prev;
+            cur->m_prev = temp;
+            cur = cur->m_prev;
+        }
+        while (cur != &m_head);
+        // do I get the job?
+    }
 
     ListBasicNode m_head;
 };

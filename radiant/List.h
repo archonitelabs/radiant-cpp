@@ -544,7 +544,10 @@ public:
                                       last.m_node);
     }
 
-    void Reverse() noexcept;
+    void Reverse() noexcept
+    {
+        m_storage.Second().Reverse();
+    }
 
 private:
 

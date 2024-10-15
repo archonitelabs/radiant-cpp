@@ -1906,3 +1906,26 @@ TEST(ListTest, PopBack)
     list.PopBack(); // TODO: squelch asserts
     EXPECT_TRUE(list.Empty());
 }
+
+TEST(ListTest, Reverse)
+{
+    rad::List<int> list;
+    list.Reverse();
+    EXPECT_TRUE(list.Empty());
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    list.Reverse();
+    ListEqual(list, { 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2 }).IsOk());
+    list.Reverse();
+    ListEqual(list, { 2, 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    list.Reverse();
+    ListEqual(list, { 3, 2, 1 });
+
+    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4 }).IsOk());
+    list.Reverse();
+    ListEqual(list, { 4, 3, 2, 1 });
+}
