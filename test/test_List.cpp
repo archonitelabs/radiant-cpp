@@ -1574,11 +1574,10 @@ TEST(ListTest, Clone)
         heap.allocCount = heap.freeCount = 0;
 
         auto success_clone_res = list.Clone();
-#if 0
         ASSERT_TRUE(success_clone_res.IsOk());
-        auto &success_clone = success_clone_res.Ok();
+        auto& success_clone = success_clone_res.Ok();
         EXPECT_EQ(heap.allocCount, 3);
-        ListEqual(success_clone, {1, 2, 3});
+        ListEqual(success_clone, { 1, 2, 3 });
         heap.allocCount = heap.freeCount = 0;
 
         // Ensure the allocator was copied
@@ -1593,6 +1592,5 @@ TEST(ListTest, Clone)
         EXPECT_EQ(heap.allocCount, 1);
         EXPECT_EQ(heap.freeCount, 1);
         EXPECT_TRUE(fail_clone.IsErr());
-#endif
     }
 }

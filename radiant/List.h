@@ -124,11 +124,11 @@ public:
         Err e = local.AssignSome(this->begin(), this->end());
         if (e.IsErr())
         {
-            return Res<List>{ ResErrTag, e.Err() };
+            return Res<List>(ResErrTag, e.Err());
         }
         else
         {
-            return Res<List>{ ResOkTag, std::move(local) };
+            return Res<List>(ResOkTag, std::move(local));
         }
     }
 
