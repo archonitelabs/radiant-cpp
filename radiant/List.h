@@ -118,11 +118,24 @@ public:
 
     List(_In_ const List& x) = delete;
 
-    Res<List> Clone();
+    Res<List> Clone()
+    {
+        List local(m_storage.First());
+        Err e = local.AssignSome(this->begin(), this->end());
+        if (e.IsErr())
+        {
+            return Res<List>{ ResErrTag, e.Err() };
+        }
+        else
+        {
+            return Res<List>{ ResOkTag, std::move(local) };
+        }
+    }
 
     List(_Inout_ List&& x) noexcept
+        : m_storage(static_cast<AllocatorType&&>(x.m_storage.First()))
     {
-        Swap(x);
+        m_storage.Second().Swap(x.m_storage.Second());
     }
 
     ~List()
@@ -337,7 +350,24 @@ public:
 
     RAD_NODISCARD Res<Iterator> InsertCount(ConstIterator position,
                                             SizeType n,
-                                            _In_ const T& x);
+                                            _In_ const T& x)
+    {
+        List local(m_storage.First());
+        auto end_iter = local.cend();
+        for (SizeType i = 0; i < n; ++i)
+        {
+            void* ptr = local.EmplacePtr(end_iter, x);
+            if (ptr == nullptr)
+            {
+                return Error::NoMemory;
+            }
+        }
+        ::rad::detail::ListBasicNode* new_pos =
+            m_storage.Second().SpliceSome(position.m_node,
+                                          local.begin().m_node,
+                                          local.end().m_node);
+        return Iterator{ new_pos };
+    }
 
     template <class InputIterator>
     RAD_NODISCARD Res<Iterator> InsertSome(ConstIterator position,
@@ -357,7 +387,10 @@ public:
 
 #if RAD_ENABLE_STD
     RAD_NODISCARD Res<Iterator> InsertInitializerList(
-        ConstIterator position, std::initializer_list<T> il);
+        ConstIterator position, std::initializer_list<T> il)
+    {
+        return ToRes(InsertSomeImpl(position, il.begin(), il.end()));
+    }
 #endif
 
     Iterator EraseOne(ConstIterator position);
@@ -370,9 +403,9 @@ public:
     void Swap(_Inout_ List& x) noexcept
     {
         {
-            TAllocator temp = m_storage.First();
-            m_storage.First() = x.m_storage.First();
-            x.m_storage.First() = temp;
+            TAllocator temp = static_cast<TAllocator&&>(m_storage.First());
+            m_storage.First() = static_cast<TAllocator&&>(x.m_storage.First());
+            x.m_storage.First() = static_cast<TAllocator&&>(temp);
         }
         m_storage.Second().Swap(x.m_storage.Second());
     }
@@ -392,21 +425,42 @@ public:
         m_storage.Second().m_head.Unlink();
     }
 
-    // [list.ops], list operations
-    void SpliceAll(ConstIterator position, _Inout_ List& x);
-    void SpliceAll(ConstIterator position, _Inout_ List&& x);
+    // The list parameter to the splice functions is mostly unused.  It's
+    // important to keep it though as a way to attest that you have mutable
+    // access to the source list.  If we want to support unequal allocators,
+    // then we'll need access to the source list.  We'll also need to add an
+    // error channel if we support unequal allocators.
+    void SpliceAll(ConstIterator position, _Inout_ List& x)
+    {
+        m_storage.Second().SpliceSome(position.m_node,
+                                      x.begin().m_node,
+                                      x.end().m_node);
+    }
 
-    void SpliceOne(ConstIterator position, _Inout_ List& x, ConstIterator i);
-    void SpliceOne(ConstIterator position, _Inout_ List&& x, ConstIterator i);
+    void SpliceAll(ConstIterator position, _Inout_ List&& x)
+    {
+        m_storage.Second().SpliceSome(position.m_node,
+                                      x.begin().m_node,
+                                      x.end().m_node);
+    }
+
+    void SpliceOne(ConstIterator position, _Inout_ List& x, ConstIterator i)
+    {
+        RAD_UNUSED(x);
+        m_storage.Second().SpliceOne(position.m_node, i.m_node);
+    }
+
+    void SpliceOne(ConstIterator position, _Inout_ List&& x, ConstIterator i)
+    {
+        RAD_UNUSED(x);
+        m_storage.Second().SpliceOne(position.m_node, i.m_node);
+    }
 
     void SpliceSome(ConstIterator position,
                     _Inout_ List& x,
                     ConstIterator first,
                     ConstIterator last)
     {
-        // List parameter is useful as a way to attest that you have mutable
-        // access to the source list.  If we want to support unequal allocators,
-        // then we'll need to deal with that here and add an error channel.
         RAD_UNUSED(x);
         m_storage.Second().SpliceSome(position.m_node,
                                       first.m_node,
@@ -418,9 +472,6 @@ public:
                     ConstIterator first,
                     ConstIterator last)
     {
-        // List parameter is useful as a way to attest that you have mutable
-        // access to the source list.  If we want to support unequal allocators,
-        // then we'll need to deal with that here and add an error channel.
         RAD_UNUSED(x);
         m_storage.Second().SpliceSome(position.m_node,
                                       first.m_node,
