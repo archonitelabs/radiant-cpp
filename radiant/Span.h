@@ -350,14 +350,7 @@ public:
 
     constexpr ReverseIteratorType rend() const noexcept
     {
-#if !RAD_DBG && defined(RAD_GCC_VERSION)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
         return ReverseIteratorType(Data());
-#if !RAD_DBG && defined(RAD_GCC_VERSION)
-#pragma GCC diagnostic pop
-#endif
     }
 
 private:
