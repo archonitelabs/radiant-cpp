@@ -106,12 +106,12 @@ public:
 
     List() = default;
 
-    explicit List(_In_ const TAllocator& alloc)
+    explicit List(const TAllocator& alloc)
         : m_storage(alloc)
     {
     }
 
-    List(_In_ const List& x) = delete;
+    List(const List& x) = delete;
 
     Res<List> Clone()
     {
@@ -120,7 +120,7 @@ public:
             .OnOk(static_cast<List&&>(local));
     }
 
-    List(_Inout_ List&& x) noexcept
+    List(List&& x) noexcept
         : m_storage(static_cast<AllocatorType&&>(x.m_storage.First()))
     {
         m_storage.Second().Swap(x.m_storage.Second());
@@ -131,9 +131,9 @@ public:
         Clear();
     }
 
-    List& operator=(_In_ const List& x) = delete;
+    List& operator=(const List& x) = delete;
 
-    List& operator=(_Inout_ List&& x) noexcept
+    List& operator=(List&& x) noexcept
     {
         Clear();
         Swap(x);
@@ -164,7 +164,7 @@ public:
         return AssignSome(rg.begin(), rg.end());
     }
 
-    Err AssignCount(SizeType n, _In_ const T& t)
+    Err AssignCount(SizeType n, const T& t)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -292,12 +292,12 @@ public:
             EmplacePtr(cend(), static_cast<Args&&>(args)...));
     }
 
-    Err PushFront(_In_ const T& x)
+    Err PushFront(const T& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cbegin(), x));
     }
 
-    Err PushFront(_Inout_ T&& x)
+    Err PushFront(T&& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cbegin(), static_cast<T&&>(x)));
     }
@@ -317,12 +317,12 @@ public:
         EraseOne(begin());
     }
 
-    Err PushBack(_In_ const T& x)
+    Err PushBack(const T& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cend(), x));
     }
 
-    Err PushBack(_Inout_ T&& x)
+    Err PushBack(T&& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cend(), static_cast<T&&>(x)));
     }
@@ -352,19 +352,19 @@ public:
         return ToRes(EmplacePtr(position, static_cast<Args&&>(args)...));
     }
 
-    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _In_ const T& x)
+    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, const T& x)
     {
         return ToRes(EmplacePtr(position, x));
     }
 
-    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, _Inout_ T&& x)
+    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, T&& x)
     {
         return ToRes(EmplacePtr(position, static_cast<T&&>(x)));
     }
 
     RAD_NODISCARD Res<Iterator> InsertCount(ConstIterator position,
                                             SizeType n,
-                                            _In_ const T& x)
+                                            const T& x)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -491,7 +491,7 @@ public:
         return count;
     }
 
-    void Swap(_Inout_ List& x) noexcept
+    void Swap(List& x) noexcept
     {
         {
             TAllocator temp = static_cast<TAllocator&&>(m_storage.First());
@@ -511,34 +511,34 @@ public:
     // access to the source list.  If we want to support unequal allocators,
     // then we'll need access to the source list.  We'll also need to add an
     // error channel if we support unequal allocators.
-    void SpliceAll(ConstIterator position, _Inout_ List& x)
+    void SpliceAll(ConstIterator position, List& x)
     {
         m_storage.Second().SpliceSome(position.m_node,
                                       x.begin().m_node,
                                       x.end().m_node);
     }
 
-    void SpliceAll(ConstIterator position, _Inout_ List&& x)
+    void SpliceAll(ConstIterator position, List&& x)
     {
         m_storage.Second().SpliceSome(position.m_node,
                                       x.begin().m_node,
                                       x.end().m_node);
     }
 
-    void SpliceOne(ConstIterator position, _Inout_ List& x, ConstIterator i)
+    void SpliceOne(ConstIterator position, List& x, ConstIterator i)
     {
         RAD_UNUSED(x);
         m_storage.Second().SpliceOne(position.m_node, i.m_node);
     }
 
-    void SpliceOne(ConstIterator position, _Inout_ List&& x, ConstIterator i)
+    void SpliceOne(ConstIterator position, List&& x, ConstIterator i)
     {
         RAD_UNUSED(x);
         m_storage.Second().SpliceOne(position.m_node, i.m_node);
     }
 
     void SpliceSome(ConstIterator position,
-                    _Inout_ List& x,
+                    List& x,
                     ConstIterator first,
                     ConstIterator last)
     {
@@ -549,7 +549,7 @@ public:
     }
 
     void SpliceSome(ConstIterator position,
-                    _Inout_ List&& x,
+                    List&& x,
                     ConstIterator first,
                     ConstIterator last)
     {

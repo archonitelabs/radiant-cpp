@@ -50,7 +50,7 @@ public:
         m_prev = m_next = this;
     }
 
-    void FixupHeadSwap(_In_ const ListBasicNode& old_head) noexcept
+    void FixupHeadSwap(const ListBasicNode& old_head) noexcept
     {
         if (m_next == &old_head)
         {
@@ -80,7 +80,7 @@ public:
         RAD_ASSERT(m_prev->m_next == this);
     }
 
-    void Swap(_Inout_ ListBasicNode& x) noexcept
+    void Swap(ListBasicNode& x) noexcept
     {
         ListBasicNode* temp = m_next;
         m_next = x.m_next;
@@ -206,7 +206,7 @@ private:
     ListBasicNode* m_node = nullptr;
 
     template <typename U, typename TAllocator>
-    friend class List;
+    friend class ::rad::List;
 
     friend class ListConstIterator<T>;
 };
@@ -298,7 +298,7 @@ private:
     ListBasicNode* m_node = nullptr;
 
     template <typename U, typename TAllocator>
-    friend class List;
+    friend class ::rad::List;
 };
 
 class ListUntyped
@@ -307,13 +307,13 @@ public:
 
     ListUntyped() = default;
 
-    ListUntyped(_In_ const ListUntyped& x) = delete;
+    ListUntyped(const ListUntyped& x) = delete;
 
-    ListUntyped(_Inout_ ListUntyped&& x) noexcept = delete;
+    ListUntyped(ListUntyped&& x) noexcept = delete;
 
     ~ListUntyped() = default;
-    ListUntyped& operator=(_In_ const ListUntyped& x) = delete;
-    ListUntyped& operator=(_Inout_ ListUntyped&& x) noexcept = delete;
+    ListUntyped& operator=(const ListUntyped& x) = delete;
+    ListUntyped& operator=(ListUntyped&& x) noexcept = delete;
 
     // O(N) operation, renamed so that people don't
     // assume it is cheap and make things accidentally
@@ -331,14 +331,14 @@ public:
         return count;
     }
 
-    void Swap(_Inout_ ListUntyped& x) noexcept
+    void Swap(ListUntyped& x) noexcept
     {
         m_head.Swap(x.m_head);
         m_head.FixupHeadSwap(x.m_head);
         x.m_head.FixupHeadSwap(m_head);
     }
 
-    void AttachNewNode(_Inout_ ListBasicNode* pos, _Inout_ ListBasicNode* i)
+    void AttachNewNode(ListBasicNode* pos, ListBasicNode* i)
     {
         RAD_ASSERT(i->m_next == i);
         RAD_ASSERT(i->m_prev == i);
@@ -350,7 +350,7 @@ public:
         pos->m_prev = i;
     }
 
-    void SpliceOne(_Inout_ ListBasicNode* pos, _Inout_ ListBasicNode* i)
+    void SpliceOne(ListBasicNode* pos, ListBasicNode* i)
     {
         i->CheckSanityBeforeRelinking();
         i->m_next->m_prev = i->m_prev;
@@ -364,9 +364,9 @@ public:
         pos->m_prev = i;
     }
 
-    ListBasicNode* SpliceSome(_Inout_ ListBasicNode* position,
-                              _Inout_ ListBasicNode* first,
-                              _Inout_ ListBasicNode* last)
+    ListBasicNode* SpliceSome(ListBasicNode* position,
+                              ListBasicNode* first,
+                              ListBasicNode* last)
     {
         if (first == last)
         {
