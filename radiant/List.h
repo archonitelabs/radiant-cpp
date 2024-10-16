@@ -17,12 +17,12 @@
 #include "radiant/TotallyRad.h"
 #include "radiant/EmptyOptimizedPair.h"
 #include "radiant/Iterator.h"
-#include "radiant/Memory.h"
 #include "radiant/Res.h"
 #include "radiant/detail/ListOperations.h"
 
+#include <stddef.h>
+
 #if RAD_ENABLE_STD
-#include <iterator>
 #include <initializer_list>
 #endif // RAD_ENABLE_STD
 
@@ -38,7 +38,7 @@ namespace rad
     The container isn't copiable using the copy constructor or copy assignment.
     This is because there is no way to indicate failure in these cases.  Move
     construction and move assignment work fine, and are guaranteed noexcept. Use
-    AssignRange if you need a deep copy.
+    Clone if you need a deep copy.
 
     The set of constructors has been greatly reduced, due to error handling
     difficulties when exceptions aren't available.
@@ -54,7 +54,7 @@ namespace rad
     standard made a mistake here.  Empty() is still present and fine, and
     ExpensiveSize() exists largely for test code.
 
-    The Assign functions now all return Res to signal errors.  The count
+    The Assign functions now all return Err to signal errors.  The count
     and initializer_list overloads of Assign were renamed to AssignCount and
     AssignInitializerList to minimize overloading
 
@@ -104,34 +104,19 @@ public:
     using Rebound =
         typename TAllocator::template Rebind<::rad::detail::ListNode<T>>::Other;
 
+    ~List()
+    {
+        Clear();
+    }
+
     List() = default;
-
-    explicit List(const TAllocator& alloc)
-        : m_storage(alloc)
-    {
-    }
-
-    List(const List& x) = delete;
-
-    Res<List> Clone()
-    {
-        List local(m_storage.First());
-        return local.AssignSome(this->begin(), this->end())
-            .OnOk(static_cast<List&&>(local));
-    }
+    RAD_NOT_COPYABLE(List);
 
     List(List&& x) noexcept
         : m_storage(static_cast<AllocatorType&&>(x.m_storage.First()))
     {
         m_storage.Second().Swap(x.m_storage.Second());
     }
-
-    ~List()
-    {
-        Clear();
-    }
-
-    List& operator=(const List& x) = delete;
 
     List& operator=(List&& x) noexcept
     {
@@ -140,53 +125,17 @@ public:
         return *this;
     }
 
-    template <class InputIterator>
-    Err AssignSome(InputIterator first, InputIterator last)
+    explicit List(const TAllocator& alloc)
+        : m_storage(alloc)
+    {
+    }
+
+    Res<List> Clone()
     {
         List local(m_storage.First());
-        auto end_iter = local.cend();
-        for (; first != last; ++first)
-        {
-            void* ptr = local.EmplacePtr(end_iter, *first);
-            if (ptr == nullptr)
-            {
-                return Error::NoMemory;
-            }
-        }
-        // using m_list Swap so that we don't need to swap allocators
-        m_storage.Second().Swap(local.m_storage.Second());
-        return EmptyOkType{};
+        return local.AssignSomeImpl(this->begin(), this->end())
+            .OnOk(static_cast<List&&>(local));
     }
-
-    template <typename InputRange>
-    Err AssignRange(InputRange&& rg)
-    {
-        return AssignSome(rg.begin(), rg.end());
-    }
-
-    Err AssignCount(SizeType n, const T& t)
-    {
-        List local(m_storage.First());
-        auto end_iter = local.cend();
-        for (SizeType i = 0; i < n; ++i)
-        {
-            void* ptr = local.EmplacePtr(end_iter, t);
-            if (ptr == nullptr)
-            {
-                return Error::NoMemory;
-            }
-        }
-        // using m_list Swap so that we don't need to swap allocators
-        m_storage.Second().Swap(local.m_storage.Second());
-        return EmptyOkType{};
-    }
-
-#if RAD_ENABLE_STD
-    Err AssignInitializerList(std::initializer_list<T> il)
-    {
-        return AssignSome(il.begin(), il.end());
-    }
-#endif
 
     AllocatorType GetAllocator() const noexcept
     {
@@ -244,7 +193,6 @@ public:
         return ConstReverseIterator(cbegin());
     }
 
-    // [list.capacity], capacity
     RAD_NODISCARD bool Empty() const noexcept
     {
         // debug perf optimization:  Duplicate "Empty"
@@ -262,81 +210,105 @@ public:
         return m_storage.Second().ExpensiveSize();
     }
 
-    // element access: TODO error handling on these
-    // Alternative, force users to do this themselves.
-    // But *my_list.begin() is no safer, and *(--m_list.end()) is annoying and
-    // unsafe. Heavily encourage people to do `for (auto &elt : list)
-    // {stuff(elt); break;}` That's also gross, and doesn't work well for back()
-    // without reverse iterators Return an optional or an expected?  Well, how
-    // do those handle dereferencing? my_list.front().value() is still unsafe.
-    // pattern matching to save the day, one day?
-    // monadic / visitation APIs?
-    // Deal with this later.  Maybe by having Res support reference types
+    template <class InputIterator>
+    ::rad::Err AssignSome(InputIterator first, InputIterator last)
+    {
+        return AssignSomeImpl(first, last);
+    }
+
+    template <typename InputRange>
+    ::rad::Err AssignRange(InputRange&& rg)
+    {
+        return AssignSomeImpl(rg.begin(), rg.end());
+    }
+
+    ::rad::Err AssignCount(SizeType n, const T& t)
+    {
+        List local(m_storage.First());
+        auto end_iter = local.cend();
+        for (SizeType i = 0; i < n; ++i)
+        {
+            void* ptr = local.EmplacePtr(end_iter, t);
+            if (ptr == nullptr)
+            {
+                return Error::NoMemory;
+            }
+        }
+        // using m_list Swap so that we don't need to swap allocators
+        m_storage.Second().Swap(local.m_storage.Second());
+        return EmptyOkType{};
+    }
+
+#if RAD_ENABLE_STD
+    ::rad::Err AssignInitializerList(std::initializer_list<T> il)
+    {
+        return AssignSomeImpl(il.begin(), il.end());
+    }
+#endif
+
+    // Error handling needs work on these.  Deal with this later.
+    // Maybe by having Res support reference types
     // Reference      front();
     // ConstReference front() const;
     // Reference      back();
     // ConstReference back() const;
 
-    // [list.modifiers], modifiers
     template <class... Args>
-    Err EmplaceFront(Args&&... args)
+    ::rad::Err EmplaceFront(Args&&... args)
     {
         return ::rad::detail::ToErr(
             EmplacePtr(cbegin(), static_cast<Args&&>(args)...));
     }
 
     template <class... Args>
-    Err EmplaceBack(Args&&... args)
+    ::rad::Err EmplaceBack(Args&&... args)
     {
         return ::rad::detail::ToErr(
             EmplacePtr(cend(), static_cast<Args&&>(args)...));
     }
 
-    Err PushFront(const T& x)
+    ::rad::Err PushFront(const T& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cbegin(), x));
     }
 
-    Err PushFront(T&& x)
+    ::rad::Err PushFront(T&& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cbegin(), static_cast<T&&>(x)));
     }
 
-    template <typename InputRange>
-    Err PrependRange(InputRange&& rg)
-    {
-        return ::rad::detail::ToErr(
-            InsertSomeImpl(cbegin(), rg.begin(), rg.end()));
-    }
-
-    // Calling PopFront while the container is empty is erroneous behavior.
-    // It's wrong to do it, and we can diagnose it in debug mode, but in
-    // release mode we will instead do nothing.
-    void PopFront()
-    {
-        EraseOne(begin());
-    }
-
-    Err PushBack(const T& x)
+    ::rad::Err PushBack(const T& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cend(), x));
     }
 
-    Err PushBack(T&& x)
+    ::rad::Err PushBack(T&& x)
     {
         return ::rad::detail::ToErr(EmplacePtr(cend(), static_cast<T&&>(x)));
     }
 
     template <typename InputRange>
-    Err AppendRange(InputRange&& rg)
+    ::rad::Err PrependRange(InputRange&& rg)
+    {
+        return ::rad::detail::ToErr(
+            InsertSomeImpl(cbegin(), rg.begin(), rg.end()));
+    }
+
+    template <typename InputRange>
+    ::rad::Err AppendRange(InputRange&& rg)
     {
         return ::rad::detail::ToErr(
             InsertSomeImpl(cend(), rg.begin(), rg.end()));
     }
 
-    // Calling PopBack while the container is empty is erroneous behavior.
-    // It's wrong to do it, and we can diagnose it in debug mode, but in
-    // release mode we will instead do nothing.
+    // Calling PopFront or PopBack while the container is empty is erroneous
+    // behavior. It's wrong to do it, and we can diagnose it in debug mode, but
+    // in release mode we will instead do nothing.
+    void PopFront()
+    {
+        EraseOne(begin());
+    }
+
     void PopBack()
     {
         EraseOne(--end());
@@ -406,6 +378,11 @@ public:
         return ToRes(InsertSomeImpl(position, il.begin(), il.end()));
     }
 #endif
+
+    void Clear() noexcept
+    {
+        EraseSome(begin(), end());
+    }
 
     Iterator EraseOne(ConstIterator position)
     {
@@ -501,11 +478,6 @@ public:
         m_storage.Second().Swap(x.m_storage.Second());
     }
 
-    void Clear() noexcept
-    {
-        EraseSome(begin(), end());
-    }
-
     // The list parameter to the splice functions is mostly unused.  It's
     // important to keep it though as a way to attest that you have mutable
     // access to the source list.  If we want to support unequal allocators,
@@ -594,9 +566,9 @@ private:
         return new_node;
     }
 
-    template <typename Iter>
+    template <typename InputIter1, typename InputIter2>
     RAD_NODISCARD ::rad::detail::ListBasicNode* InsertSomeImpl(
-        ConstIterator position, Iter first, Iter last)
+        ConstIterator position, InputIter1 first, InputIter2 last)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -615,12 +587,30 @@ private:
         return new_pos;
     }
 
+    template <typename InputIter1, typename InputIter2>
+    ::rad::Err AssignSomeImpl(InputIter1 first, InputIter2 last)
+    {
+        List local(m_storage.First());
+        auto end_iter = local.cend();
+        for (; first != last; ++first)
+        {
+            void* ptr = local.EmplacePtr(end_iter, *first);
+            if (ptr == nullptr)
+            {
+                return Error::NoMemory;
+            }
+        }
+        // using m_list Swap so that we don't need to swap allocators
+        m_storage.Second().Swap(local.m_storage.Second());
+        return EmptyOkType{};
+    }
+
     Rebound ReboundAlloc()
     {
         return m_storage.First();
     }
 
-    EmptyOptimizedPair<TAllocator, ::rad::detail::ListUntyped> m_storage;
+    ::rad::EmptyOptimizedPair<TAllocator, ::rad::detail::ListUntyped> m_storage;
 };
 
 } // namespace rad

@@ -15,10 +15,13 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
+#include "radiant/Memory.h"
+#include "radiant/Res.h"
+
+#include <stddef.h>
 
 #if RAD_ENABLE_STD
 #include <iterator>
-#include <initializer_list>
 #endif // RAD_ENABLE_STD
 
 namespace rad
@@ -40,9 +43,8 @@ public:
     ~ListBasicNode() = default;
 
     // immovable
-    ListBasicNode(const ListBasicNode&) = delete;
+    RAD_NOT_COPYABLE(ListBasicNode);
     ListBasicNode(ListBasicNode&&) = delete;
-    ListBasicNode& operator=(const ListBasicNode&) = delete;
     ListBasicNode& operator=(ListBasicNode&&) = delete;
 
     void Unlink()
@@ -61,11 +63,10 @@ public:
         }
         else
         {
-            // TODO: turn the asserts into fast fails.
-            // if they fire, it indicates a heap overflow,
+            // if these fire, it indicates a heap overflow,
             // and someone is trying to build a write primitive
-            RAD_ASSERT(m_next->m_prev == &old_head);
-            RAD_ASSERT(m_prev->m_next == &old_head);
+            RAD_FAST_FAIL(m_next->m_prev == &old_head);
+            RAD_FAST_FAIL(m_prev->m_next == &old_head);
             m_next->m_prev = this;
             m_prev->m_next = this;
         }
@@ -73,11 +74,10 @@ public:
 
     void CheckSanityBeforeRelinking() const noexcept
     {
-        // TODO: turn the asserts into fast fails.
-        // if they fire, it indicates a heap overflow,
+        // if these fire, it indicates a heap overflow,
         // and someone is trying to build a write primitive
-        RAD_ASSERT(m_next->m_prev == this);
-        RAD_ASSERT(m_prev->m_next == this);
+        RAD_FAST_FAIL(m_next->m_prev == this);
+        RAD_FAST_FAIL(m_prev->m_next == this);
     }
 
     void Swap(ListBasicNode& x) noexcept
@@ -93,8 +93,7 @@ public:
 
     void AssertOnEmpty() const noexcept
     {
-        // TODO: turn the assert into fast fail.
-        RAD_ASSERT(m_next != this);
+        RAD_FAST_FAIL(m_next != this);
     }
 
     ListBasicNode* m_next = this;
@@ -118,9 +117,8 @@ public:
     }
 
     // immovable
-    ListNode(const ListNode&) = delete;
+    RAD_NOT_COPYABLE(ListNode);
     ListNode(ListNode&&) = delete;
-    ListNode& operator=(const ListNode&) = delete;
     ListNode& operator=(ListNode&&) = delete;
 
     T m_elt;
@@ -306,13 +304,11 @@ class ListUntyped
 public:
 
     ListUntyped() = default;
+    ~ListUntyped() = default;
 
-    ListUntyped(const ListUntyped& x) = delete;
+    RAD_NOT_COPYABLE(ListUntyped);
 
     ListUntyped(ListUntyped&& x) noexcept = delete;
-
-    ~ListUntyped() = default;
-    ListUntyped& operator=(const ListUntyped& x) = delete;
     ListUntyped& operator=(ListUntyped&& x) noexcept = delete;
 
     // O(N) operation, renamed so that people don't
@@ -410,7 +406,7 @@ public:
     ListBasicNode m_head;
 };
 
-inline Err ToErr(void* ptr)
+inline ::rad::Err ToErr(void* ptr)
 {
     if (ptr == nullptr)
     {

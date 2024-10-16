@@ -198,6 +198,15 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 
 #endif
 
+#if RAD_WINDOWS
+extern "C" __declspec(noreturn) void __fastfail(unsigned int code);
+#define RAD_FAST_FAIL_ALWAYS() (__fastfail('idar'), false)
+#else // ^^^ RAD_WINDOWS / !RAD_WINDOWS vvv
+#define RAD_FAST_FAIL_ALWAYS() (__builtin_trap(), false)
+#endif // !RAD_WINDOWS ^^^
+
+#define RAD_FAST_FAIL(x) ((!!(x)) || (RAD_FAST_FAIL_ALWAYS()))
+
 #if RAD_DBG
 
 #if RAD_WINDOWS && RAD_KERNEL_MODE

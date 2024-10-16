@@ -13,13 +13,13 @@
 // limitations under the License.
 #define RAD_DEFAULT_ALLOCATOR radtest::Allocator
 #include "test/TestAlloc.h"
+#include "test/TestInputStringLiteralRange.h"
 
 #include "radiant/List.h"
 #include "radiant/Span.h"
 
-#include <gtest/gtest.h>
-
 #include <array>
+#include <gtest/gtest.h>
 #include <string>
 #include <utility>
 
@@ -453,6 +453,11 @@ TEST(ListTest, AssignRange)
     rad::List<int> new_copy;
     EXPECT_TRUE(new_copy.AssignRange(input).IsOk());
     ListEqual(input, { 101, 203, 304 });
+
+    rad::List<char> chars;
+    EXPECT_TRUE(
+        chars.AssignRange(radtest::TestInputStringLiteralRange("abc")).IsOk());
+    ListEqual(chars, { 'a', 'b', 'c' });
 }
 
 TEST(ListTest, AssignCount)
@@ -1362,6 +1367,12 @@ TEST(ListTest, PrependRange)
     EXPECT_TRUE(dest.PrependRange(empty).IsOk());
     ListEqual(dest, { 100, 101, 0, 1, 2, 3 });
 
+    rad::List<char> chars;
+    EXPECT_TRUE(chars.AssignInitializerList({ 'x', 'y', 'z' }).IsOk());
+    EXPECT_TRUE(
+        chars.PrependRange(radtest::TestInputStringLiteralRange("abc")).IsOk());
+    ListEqual(chars, { 'a', 'b', 'c', 'x', 'y', 'z' });
+
     radtest::HeapAllocator heap;
     radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
     rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
@@ -1389,6 +1400,12 @@ TEST(ListTest, AppendRange)
     rad::List<int> empty;
     EXPECT_TRUE(dest.AppendRange(empty).IsOk());
     ListEqual(dest, { 0, 1, 2, 3, 100, 101 });
+
+    rad::List<char> chars;
+    EXPECT_TRUE(chars.AssignInitializerList({ 'x', 'y', 'z' }).IsOk());
+    EXPECT_TRUE(
+        chars.AppendRange(radtest::TestInputStringLiteralRange("abc")).IsOk());
+    ListEqual(chars, { 'x', 'y', 'z', 'a', 'b', 'c' });
 
     radtest::HeapAllocator heap;
     radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
@@ -1427,6 +1444,17 @@ TEST(ListTest, InsertRange)
         EXPECT_EQ(it, ++dest.begin());
         EXPECT_EQ(it, insert_pos);
         ListEqual(dest, { 0, 100, 101, 1, 2, 3 });
+
+        rad::List<char> chars;
+        EXPECT_TRUE(chars.AssignInitializerList({ 'x', 'y', 'z' }).IsOk());
+        auto char_insert_pos = ++chars.begin();
+        auto res_char_it =
+            chars.InsertRange(char_insert_pos,
+                              radtest::TestInputStringLiteralRange("abc"));
+        EXPECT_EQ(*res_char_it.Ok(), 'a');
+        EXPECT_EQ(*char_insert_pos, 'y');
+        EXPECT_EQ(*(++chars.begin()), 'a');
+        ListEqual(chars, { 'x', 'a', 'b', 'c', 'y', 'z' });
     }
     {
         radtest::HeapAllocator heap;
