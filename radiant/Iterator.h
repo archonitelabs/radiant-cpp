@@ -262,6 +262,7 @@ public:
     constexpr PointerType operator->() const noexcept
     {
         T tmp = m_current;
+        --tmp;
         return tmp;
     }
 
@@ -269,18 +270,20 @@ public:
     constexpr PointerType operator->() const noexcept
     {
         T tmp = m_current;
+        --tmp;
         return tmp.operator->();
     }
 
     constexpr ReferenceType operator*() const noexcept
     {
         T tmp = m_current;
+        --tmp;
         return *tmp;
     }
 
     constexpr ReferenceType operator[](DifferenceType diff) const noexcept
     {
-        return m_current[static_cast<DifferenceType>(-diff)];
+        return m_current[static_cast<DifferenceType>(-diff - 1)];
     }
 
     constexpr ThisType& operator++() noexcept
