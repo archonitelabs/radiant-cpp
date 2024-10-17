@@ -26,7 +26,7 @@ class StringLiteralIterator
 public:
 
     using difference_type = ptrdiff_t;
-    using value_type = const char;
+    using value_type = char;
 
     StringLiteralIterator() = default;
 
