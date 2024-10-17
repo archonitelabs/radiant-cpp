@@ -25,9 +25,6 @@
 
 using namespace testing;
 
-// TODO: forward and input iterators.  Proxy iterators?  Non-trivial types like
-// List<List<int>>
-
 // ensure no_unique_address is doing what we want
 static_assert(sizeof(rad::detail::ListUntyped) == 2 * sizeof(void*),
               "unexpected object size");
@@ -216,21 +213,40 @@ struct MoveStruct
 
 TEST(ListTest, MovePushBack)
 {
-    rad::List<MoveStruct> i;
-    MoveStruct local;
-    EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
-    ListValEqual(i, { 42 });
-    EXPECT_EQ(local.val, -1);
+    {
+        rad::List<MoveStruct> i;
+        MoveStruct local;
+        EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
+        ListValEqual(i, { 42 });
+        EXPECT_EQ(local.val, -1);
 
-    local.val = 99;
-    EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
-    ListValEqual(i, { 42, 99 });
-    EXPECT_EQ(local.val, -1);
+        local.val = 99;
+        EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
+        ListValEqual(i, { 42, 99 });
+        EXPECT_EQ(local.val, -1);
 
-    local.val = 77;
-    EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
-    ListValEqual(i, { 42, 99, 77 });
-    EXPECT_EQ(local.val, -1);
+        local.val = 77;
+        EXPECT_TRUE(i.PushBack(std::move(local)).IsOk());
+        ListValEqual(i, { 42, 99, 77 });
+        EXPECT_EQ(local.val, -1);
+    }
+    {
+        rad::List<rad::List<int>> lli;
+        rad::List<int> ints;
+
+        EXPECT_TRUE(ints.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(lli.PushBack(std::move(ints)).IsOk());
+        EXPECT_TRUE(ints.Empty());
+        EXPECT_EQ(lli.ExpensiveSize(), 1);
+        ListEqual(*lli.begin(), { 1, 2, 3 });
+
+        EXPECT_TRUE(ints.AssignInitializerList({ 4, 5, 6 }).IsOk());
+        EXPECT_TRUE(lli.PushBack(std::move(ints)).IsOk());
+        EXPECT_TRUE(ints.Empty());
+        EXPECT_EQ(lli.ExpensiveSize(), 2);
+        ListEqual(*lli.begin(), { 1, 2, 3 });
+        ListEqual(*++lli.begin(), { 4, 5, 6 });
+    }
 }
 
 TEST(ListTest, MovePushFront)
@@ -1910,7 +1926,7 @@ TEST(ListTest, PopFront)
     list.PopFront();
     EXPECT_TRUE(list.Empty());
 
-    list.PopFront(); // TODO: squelch asserts
+    list.PopFront();
     EXPECT_TRUE(list.Empty());
 }
 
@@ -1930,7 +1946,7 @@ TEST(ListTest, PopBack)
     list.PopBack();
     EXPECT_TRUE(list.Empty());
 
-    list.PopBack(); // TODO: squelch asserts
+    list.PopBack();
     EXPECT_TRUE(list.Empty());
 }
 
