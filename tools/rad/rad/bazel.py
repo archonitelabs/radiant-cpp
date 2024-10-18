@@ -230,12 +230,13 @@ def _get_cpplink_executable(args):
     return None
 
 
-def get_label_executables(label):
+def get_label_executables(label, deps=False):
     """Get the result executables from the given label"""
+    internal_label = f"deps({label})" if deps else label
     output = BAZEL.capture_output(
         [
             "aquery",
-            f'mnemonic("CppLink", (outputs(".*exe", deps({label}))))',
+            f'mnemonic("CppLink", (outputs(".*exe", {internal_label})))',
             "--output=jsonproto",
         ]
     )
