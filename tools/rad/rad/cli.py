@@ -113,8 +113,9 @@ def test(args) -> bool:
     clang = ["--repo_env=CC=clang"] if os.name != "nt" and args.clang else []
     nostd = ["--copt=-DRAD_NO_STD"] if args.no_std else []
     nocache = ["--nocache_test_results"] if args.no_cache else []
+    mode = ["-c", "opt"] if args.release else ["-c", "dbg"]
     return rad.bazel.test(
-        get_label(args), clang + platforms + nostd + nocache + verbosity
+        get_label(args), clang + mode + platforms + nostd + nocache + verbosity
     )
 
 
@@ -269,6 +270,9 @@ def main() -> int:
         "--no-cache",
         action="store_true",
         help="ignore cached test results",
+    )
+    test_parser.add_argument(
+        "--release", action="store_true", help="builds release instead of debug"
     )
     test_parser.add_argument(
         "--label",
