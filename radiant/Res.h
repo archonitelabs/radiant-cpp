@@ -54,4 +54,13 @@ using ResOk = ResultOk<T>;
 template <typename T>
 using ResErr = ResultErr<T>;
 
+inline Err ErrIfNull(void* ptr, Error e = Error::NoMemory)
+{
+    if (ptr == nullptr)
+    {
+        return e;
+    }
+    return EmptyOkType{};
+}
+
 } // namespace rad

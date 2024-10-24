@@ -26,12 +26,12 @@
 using namespace testing;
 
 // ensure no_unique_address is doing what we want
-static_assert(sizeof(rad::detail::ListUntyped) == 2 * sizeof(void*),
-              "unexpected object size");
-static_assert(sizeof(rad::List<int>) == 2 * sizeof(void*),
-              "unexpected object size");
-static_assert(sizeof(rad::detail::ListUntyped) == sizeof(rad::List<int>),
-              "unexpected object size");
+RAD_S_ASSERTMSG(sizeof(rad::detail::ListUntyped) == 2 * sizeof(void*),
+                "unexpected object size");
+RAD_S_ASSERTMSG(sizeof(rad::List<int>) == 2 * sizeof(void*),
+                "unexpected object size");
+RAD_S_ASSERTMSG(sizeof(rad::detail::ListUntyped) == sizeof(rad::List<int>),
+                "unexpected object size");
 
 template <typename T, typename Alloc>
 void ListEqual(const rad::List<T, Alloc>& list,
@@ -153,6 +153,22 @@ TEST(ListTest, DefaultConstructClear)
 struct CopyStruct
 {
     int val = 42;
+    CopyStruct() = default;
+    CopyStruct(const CopyStruct&) = default;
+    CopyStruct& operator=(const CopyStruct&) = default;
+
+    CopyStruct(CopyStruct&& other)
+        : val(other.val)
+    {
+        other.val = -1;
+    }
+
+    CopyStruct& operator=(CopyStruct&& other)
+    {
+        val = other.val;
+        other.val = -1;
+        return *this;
+    }
 };
 
 TEST(ListTest, CopyPushBack)
@@ -162,14 +178,17 @@ TEST(ListTest, CopyPushBack)
     local.val = 42;
     EXPECT_TRUE(i.PushBack(local).IsOk());
     ListValEqual(i, { 42 });
+    EXPECT_EQ(local.val, 42);
 
     local.val = 99;
     EXPECT_TRUE(i.PushBack(local).IsOk());
     ListValEqual(i, { 42, 99 });
+    EXPECT_EQ(local.val, 99);
 
     local.val = 77;
     EXPECT_TRUE(i.PushBack(local).IsOk());
     ListValEqual(i, { 42, 99, 77 });
+    EXPECT_EQ(local.val, 77);
 }
 
 TEST(ListTest, CopyPushFront)
@@ -179,14 +198,17 @@ TEST(ListTest, CopyPushFront)
     local.val = 42;
     EXPECT_TRUE(i.PushFront(local).IsOk());
     ListValEqual(i, { 42 });
+    EXPECT_EQ(local.val, 42);
 
     local.val = 99;
     EXPECT_TRUE(i.PushFront(local).IsOk());
     ListValEqual(i, { 99, 42 });
+    EXPECT_EQ(local.val, 99);
 
     local.val = 77;
     EXPECT_TRUE(i.PushFront(local).IsOk());
     ListValEqual(i, { 77, 99, 42 });
+    EXPECT_EQ(local.val, 77);
 }
 
 struct MoveStruct
@@ -234,16 +256,18 @@ TEST(ListTest, MovePushBack)
         rad::List<rad::List<int>> lli;
         rad::List<int> ints;
 
-        EXPECT_TRUE(ints.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            ints.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
         EXPECT_TRUE(lli.PushBack(std::move(ints)).IsOk());
         EXPECT_TRUE(ints.Empty());
-        EXPECT_EQ(lli.ExpensiveSize(), 1);
+        EXPECT_EQ(lli.ExpensiveSize(), 1u);
         ListEqual(*lli.begin(), { 1, 2, 3 });
 
-        EXPECT_TRUE(ints.AssignInitializerList({ 4, 5, 6 }).IsOk());
+        EXPECT_TRUE(
+            ints.AssignRange(std::initializer_list<int>{ 4, 5, 6 }).IsOk());
         EXPECT_TRUE(lli.PushBack(std::move(ints)).IsOk());
         EXPECT_TRUE(ints.Empty());
-        EXPECT_EQ(lli.ExpensiveSize(), 2);
+        EXPECT_EQ(lli.ExpensiveSize(), 2u);
         ListEqual(*lli.begin(), { 1, 2, 3 });
         ListEqual(*++lli.begin(), { 4, 5, 6 });
     }
@@ -310,6 +334,7 @@ TEST(ListTest, ImmovableEmplaceFront)
     ListValEqual(i, { 77, 99, 42 });
 }
 
+#if RAD_ENABLE_STD
 TEST(ListTest, AssignInitList)
 {
     rad::List<int> li;
@@ -317,10 +342,10 @@ TEST(ListTest, AssignInitList)
     EXPECT_TRUE(li.Empty());
 
     EXPECT_TRUE(li.AssignInitializerList({ 42 }).IsOk());
-    EXPECT_EQ(1, li.ExpensiveSize());
+    EXPECT_EQ(1u, li.ExpensiveSize());
 
     EXPECT_TRUE(li.AssignInitializerList({ 100, 101, 102, 103 }).IsOk());
-    EXPECT_EQ(4, li.ExpensiveSize());
+    EXPECT_EQ(4u, li.ExpensiveSize());
 
     int i = 100;
     for (int elt : li)
@@ -332,6 +357,7 @@ TEST(ListTest, AssignInitList)
     EXPECT_TRUE(li.AssignInitializerList({}).IsOk());
     EXPECT_TRUE(li.Empty());
 }
+#endif
 
 TEST(ListTest, MoveConstruct)
 {
@@ -351,7 +377,7 @@ TEST(ListTest, MoveConstruct)
     }
     {
         rad::List<int> two;
-        EXPECT_TRUE(two.AssignInitializerList({ 1, 2 }).IsOk());
+        EXPECT_TRUE(two.AssignRange(std::initializer_list<int>{ 1, 2 }).IsOk());
 
         rad::List<int> move_from_two(std::move(two));
         ListEqual(two, {});
@@ -359,7 +385,8 @@ TEST(ListTest, MoveConstruct)
     }
     {
         rad::List<int> three;
-        EXPECT_TRUE(three.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            three.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
 
         rad::List<int> move_from_three(std::move(three));
         ListEqual(three, {});
@@ -387,13 +414,13 @@ TEST(ListTest, ClearSome)
     i.Clear();
     EXPECT_TRUE(i.Empty());
 
-    EXPECT_TRUE(i.AssignInitializerList({ 2, 3 }).IsOk());
-    EXPECT_EQ(i.ExpensiveSize(), 2);
+    EXPECT_TRUE(i.AssignRange(std::initializer_list<int>{ 2, 3 }).IsOk());
+    EXPECT_EQ(i.ExpensiveSize(), 2u);
     i.Clear();
     EXPECT_TRUE(i.Empty());
 
-    EXPECT_TRUE(i.AssignInitializerList({ 4, 5, 6 }).IsOk());
-    EXPECT_EQ(i.ExpensiveSize(), 3);
+    EXPECT_TRUE(i.AssignRange(std::initializer_list<int>{ 4, 5, 6 }).IsOk());
+    EXPECT_EQ(i.ExpensiveSize(), 3u);
     i.Clear();
     EXPECT_TRUE(i.Empty());
 }
@@ -416,7 +443,8 @@ TEST(ListTest, RangeForLoop)
         FAIL() << "should be empty";
     }
 
-    EXPECT_TRUE(input.AssignInitializerList({ 0, 1, 2 }).IsOk());
+    EXPECT_TRUE(
+        input.AssignRange(std::initializer_list<int>{ 0, 1, 2 }).IsOk());
 
     // ensure that the references we get are "real"
     int i = 0;
@@ -496,7 +524,7 @@ TEST(ListTest, Emplace)
         input(alloc);
 
     // emplace at the end
-    auto /* Res<Iterator> */ iter = input.Emplace(input.end(), 42);
+    auto /* Res<IteratorType> */ iter = input.Emplace(input.end(), 42);
     ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == --input.end());
     EXPECT_EQ(iter.Ok()->val, 42);
@@ -550,7 +578,8 @@ TEST(ListTest, MoveInsert)
     MoveStruct ms;
     ms.val = 42;
     // insert at the end
-    auto /* Res<Iterator> */ iter = input.Insert(input.end(), std::move(ms));
+    auto /* Res<IteratorType> */ iter =
+        input.Insert(input.end(), std::move(ms));
     ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == --input.end());
     EXPECT_EQ(iter.Ok()->val, 42);
@@ -619,10 +648,11 @@ TEST(ListTest, CopyInsert)
     CopyStruct cs;
     cs.val = 42;
     // insert at the end
-    auto /* Res<Iterator> */ iter = input.Insert(input.end(), cs);
+    auto /* Res<IteratorType> */ iter = input.Insert(input.end(), cs);
     ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == --input.end());
     EXPECT_EQ(iter.Ok()->val, 42);
+    EXPECT_EQ(cs.val, 42);
 
     cs.val = 43;
     iter = input.Insert(input.end(), cs);
@@ -630,6 +660,7 @@ TEST(ListTest, CopyInsert)
     EXPECT_TRUE(iter == --input.end());
     EXPECT_EQ(iter.Ok()->val, 43);
     ListValEqual(input, { 42, 43 });
+    EXPECT_EQ(cs.val, 43);
 
     // insert at the beginning
     cs.val = 99;
@@ -637,6 +668,7 @@ TEST(ListTest, CopyInsert)
     ASSERT_TRUE(iter);
     EXPECT_TRUE(iter == input.begin());
     EXPECT_EQ(iter.Ok()->val, 99);
+    EXPECT_EQ(cs.val, 99);
 
     cs.val = 100;
     iter = input.Insert(input.begin(), cs);
@@ -644,6 +676,7 @@ TEST(ListTest, CopyInsert)
     EXPECT_TRUE(iter == input.begin());
     EXPECT_EQ(iter.Ok()->val, 100);
     ListValEqual(input, { 100, 99, 42, 43 });
+    EXPECT_EQ(cs.val, 100);
 
     // insert near the beginning
     cs.val = 23;
@@ -653,6 +686,7 @@ TEST(ListTest, CopyInsert)
     EXPECT_TRUE(iter == ++input.begin());
     EXPECT_TRUE(iter != old_iter);
     ListValEqual(input, { 100, 23, 99, 42, 43 });
+    EXPECT_EQ(cs.val, 23);
 
     // insert near the end
     cs.val = 77;
@@ -662,12 +696,14 @@ TEST(ListTest, CopyInsert)
     EXPECT_TRUE(iter == --(--input.end()));
     EXPECT_TRUE(iter != old_iter);
     ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+    EXPECT_EQ(cs.val, 77);
 
     cs.val = -100;
     heap.forceAllocFails = 1;
     iter = input.Insert(input.begin(), cs);
     EXPECT_TRUE(iter.IsErr());
     ListValEqual(input, { 100, 23, 99, 42, 77, 43 });
+    EXPECT_EQ(cs.val, -100);
 }
 
 TEST(ListTest, AssignFailure)
@@ -687,13 +723,15 @@ TEST(ListTest, AssignFailure)
     // AssignInitializerList fails back to empty when it starts empty
     heap.allocCount = heap.freeCount = 0;
     heap.forceFutureAllocFail = 3;
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsErr());
+    EXPECT_TRUE(
+        list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 }).IsErr());
     EXPECT_EQ(heap.allocCount, 2);
     EXPECT_EQ(heap.freeCount, 2);
     EXPECT_TRUE(list.Empty());
 
     // make sure nothing is corrupted
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+    EXPECT_TRUE(
+        list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 }).IsOk());
     ListEqual(list, { 1, 2, 3, 4, 5 });
     auto old_begin = list.begin();
     auto old_end = list.end();
@@ -713,7 +751,8 @@ TEST(ListTest, AssignFailure)
     heap.allocCount = heap.freeCount = 0;
     heap.forceFutureAllocFail = 5;
     EXPECT_TRUE(
-        list.AssignInitializerList({ 101, 102, 103, 104, 105 }).IsErr());
+        list.AssignRange(std::initializer_list<int>{ 101, 102, 103, 104, 105 })
+            .IsErr());
     EXPECT_EQ(heap.allocCount, 4);
     EXPECT_EQ(heap.freeCount, 4);
     EXPECT_EQ(list.end(), old_end);
@@ -725,7 +764,7 @@ TEST(ListTest, AssignFailure)
 TEST(ListTest, PostIncrPostDecr)
 {
     rad::List<int> data;
-    EXPECT_TRUE(data.AssignInitializerList({ 0, 1, 2, 3 }));
+    EXPECT_TRUE(data.AssignRange(std::initializer_list<int>{ 0, 1, 2, 3 }));
     auto pre_begin = data.begin();
     auto post_begin = data.begin();
     EXPECT_EQ(pre_begin, post_begin++);
@@ -896,9 +935,9 @@ struct SpliceSomeExhaustive_data
     int dest_pos;
     rad::List<int> source;
     rad::List<int> dest;
-    rad::List<int>::Iterator src_begin_iter;
-    rad::List<int>::Iterator src_end_iter;
-    rad::List<int>::Iterator dest_pos_iter;
+    rad::List<int>::IteratorType src_begin_iter;
+    rad::List<int>::IteratorType src_end_iter;
+    rad::List<int>::IteratorType dest_pos_iter;
 
     void BuildSrc()
     {
@@ -935,7 +974,7 @@ struct SpliceSomeExhaustive_data
 
     void VerifySrc(const std::string& case_id)
     {
-        EXPECT_EQ(source.ExpensiveSize(), src_size - (src_end - src_begin))
+        EXPECT_EQ((int)source.ExpensiveSize(), src_size - (src_end - src_begin))
             << case_id;
         int i = 0;
         for (auto it = source.begin(); it != source.end(); ++it, ++i)
@@ -956,7 +995,7 @@ struct SpliceSomeExhaustive_data
 
     void VerifyDest(const std::string& case_id)
     {
-        EXPECT_EQ(dest.ExpensiveSize(), dest_size + (src_end - src_begin))
+        EXPECT_EQ((int)dest.ExpensiveSize(), dest_size + (src_end - src_begin))
             << case_id;
         int i = 0;
         for (auto it = dest.begin(); it != dest.end(); ++it, ++i)
@@ -1084,8 +1123,8 @@ struct SpliceOneExhaustive_data
     int dest_pos;
     rad::List<int> source;
     rad::List<int> dest;
-    rad::List<int>::Iterator src_pos_iter;
-    rad::List<int>::Iterator dest_pos_iter;
+    rad::List<int>::IteratorType src_pos_iter;
+    rad::List<int>::IteratorType dest_pos_iter;
 
     void BuildSrc()
     {
@@ -1118,7 +1157,7 @@ struct SpliceOneExhaustive_data
 
     void VerifySrc(const std::string& case_id)
     {
-        EXPECT_EQ(source.ExpensiveSize(), src_size - 1) << case_id;
+        EXPECT_EQ((int)source.ExpensiveSize(), src_size - 1) << case_id;
         int i = 0;
         for (auto it = source.begin(); it != source.end(); ++it, ++i)
         {
@@ -1138,7 +1177,7 @@ struct SpliceOneExhaustive_data
 
     void VerifyDest(const std::string& case_id)
     {
-        EXPECT_EQ(dest.ExpensiveSize(), dest_size + 1) << case_id;
+        EXPECT_EQ((int)dest.ExpensiveSize(), dest_size + 1) << case_id;
         int i = 0;
         for (auto it = dest.begin(); it != dest.end(); ++it, ++i)
         {
@@ -1250,7 +1289,7 @@ struct SpliceAllExhaustive_data
     int dest_pos;
     rad::List<int> source;
     rad::List<int> dest;
-    rad::List<int>::Iterator dest_pos_iter;
+    rad::List<int>::IteratorType dest_pos_iter;
 
     void BuildSrc()
     {
@@ -1282,7 +1321,7 @@ struct SpliceAllExhaustive_data
 
     void VerifyDest(const std::string& case_id)
     {
-        EXPECT_EQ(dest.ExpensiveSize(), dest_size + src_size) << case_id;
+        EXPECT_EQ((int)dest.ExpensiveSize(), dest_size + src_size) << case_id;
         int i = 0;
         for (auto it = dest.begin(); it != dest.end(); ++it, ++i)
         {
@@ -1373,7 +1412,8 @@ TEST(ListTest, SpliceAllExhaustive)
 TEST(ListTest, PrependRange)
 {
     rad::List<int> dest;
-    EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+    EXPECT_TRUE(
+        dest.AssignRange(std::initializer_list<int>{ 0, 1, 2, 3 }).IsOk());
     std::array<int, 2> source = { 100, 101 };
 
     EXPECT_TRUE(dest.PrependRange(source).IsOk());
@@ -1384,7 +1424,8 @@ TEST(ListTest, PrependRange)
     ListEqual(dest, { 100, 101, 0, 1, 2, 3 });
 
     rad::List<char> chars;
-    EXPECT_TRUE(chars.AssignInitializerList({ 'x', 'y', 'z' }).IsOk());
+    EXPECT_TRUE(
+        chars.AssignRange(std::initializer_list<char>{ 'x', 'y', 'z' }).IsOk());
     EXPECT_TRUE(
         chars.PrependRange(radtest::TestInputStringLiteralRange("abc")).IsOk());
     ListEqual(chars, { 'a', 'b', 'c', 'x', 'y', 'z' });
@@ -1394,7 +1435,7 @@ TEST(ListTest, PrependRange)
     rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
         alloc);
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
     heap.allocCount = heap.freeCount = 0;
     // PrependRange doesn't modify the list when allocations fail
     heap.forceFutureAllocFail = 2;
@@ -1407,7 +1448,8 @@ TEST(ListTest, PrependRange)
 TEST(ListTest, AppendRange)
 {
     rad::List<int> dest;
-    EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+    EXPECT_TRUE(
+        dest.AssignRange(std::initializer_list<int>{ 0, 1, 2, 3 }).IsOk());
     std::array<int, 2> source = { 100, 101 };
 
     EXPECT_TRUE(dest.AppendRange(source).IsOk());
@@ -1418,7 +1460,8 @@ TEST(ListTest, AppendRange)
     ListEqual(dest, { 0, 1, 2, 3, 100, 101 });
 
     rad::List<char> chars;
-    EXPECT_TRUE(chars.AssignInitializerList({ 'x', 'y', 'z' }).IsOk());
+    EXPECT_TRUE(
+        chars.AssignRange(std::initializer_list<char>{ 'x', 'y', 'z' }).IsOk());
     EXPECT_TRUE(
         chars.AppendRange(radtest::TestInputStringLiteralRange("abc")).IsOk());
     ListEqual(chars, { 'x', 'y', 'z', 'a', 'b', 'c' });
@@ -1428,7 +1471,7 @@ TEST(ListTest, AppendRange)
     rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
         alloc);
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
     heap.allocCount = heap.freeCount = 0;
     // AppendRange doesn't modify the list when allocations fail
     heap.forceFutureAllocFail = 2;
@@ -1444,10 +1487,11 @@ TEST(ListTest, InsertRange)
 
     {
         rad::List<int> dest;
-        EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            dest.AssignRange(std::initializer_list<int>{ 0, 1, 2, 3 }).IsOk());
 
-        rad::Res<rad::List<int>::Iterator> it;
-        rad::List<int>::Iterator insert_pos;
+        rad::Res<rad::List<int>::IteratorType> it;
+        rad::List<int>::IteratorType insert_pos;
         insert_pos = ++dest.begin();
         it = dest.InsertRange(insert_pos, source);
         EXPECT_EQ(it, ++dest.begin());
@@ -1462,7 +1506,9 @@ TEST(ListTest, InsertRange)
         ListEqual(dest, { 0, 100, 101, 1, 2, 3 });
 
         rad::List<char> chars;
-        EXPECT_TRUE(chars.AssignInitializerList({ 'x', 'y', 'z' }).IsOk());
+        EXPECT_TRUE(
+            chars.AssignRange(std::initializer_list<char>{ 'x', 'y', 'z' })
+                .IsOk());
         auto char_insert_pos = ++chars.begin();
         auto res_char_it =
             chars.InsertRange(char_insert_pos,
@@ -1478,7 +1524,8 @@ TEST(ListTest, InsertRange)
         rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
             alloc);
 
-        EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
         heap.allocCount = heap.freeCount = 0;
         auto insert_pos = ++list.begin();
         // InsertRange doesn't modify the list when allocations fail
@@ -1498,10 +1545,11 @@ TEST(ListTest, InsertSome)
 
     {
         rad::List<int> dest;
-        EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            dest.AssignRange(std::initializer_list<int>{ 0, 1, 2, 3 }).IsOk());
 
-        rad::Res<rad::List<int>::Iterator> it;
-        rad::List<int>::Iterator insert_pos;
+        rad::Res<rad::List<int>::IteratorType> it;
+        rad::List<int>::IteratorType insert_pos;
         insert_pos = ++dest.begin();
         it = dest.InsertSome(insert_pos, source.begin(), source.end());
         EXPECT_EQ(it, ++dest.begin());
@@ -1521,7 +1569,8 @@ TEST(ListTest, InsertSome)
         rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
             alloc);
 
-        EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
         heap.allocCount = heap.freeCount = 0;
         auto insert_pos = ++list.begin();
         // InsertSome doesn't modify the list when allocations fail
@@ -1535,14 +1584,16 @@ TEST(ListTest, InsertSome)
     }
 }
 
+#if RAD_ENABLE_STD
 TEST(ListTest, InsertInitializerList)
 {
     {
         rad::List<int> dest;
-        EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            dest.AssignRange(std::initializer_list<int>{ 0, 1, 2, 3 }).IsOk());
 
-        rad::Res<rad::List<int>::Iterator> it;
-        rad::List<int>::Iterator insert_pos;
+        rad::Res<rad::List<int>::IteratorType> it;
+        rad::List<int>::IteratorType insert_pos;
         insert_pos = ++dest.begin();
         it = dest.InsertInitializerList(insert_pos, { 100, 101 });
         EXPECT_EQ(it, ++dest.begin());
@@ -1561,7 +1612,8 @@ TEST(ListTest, InsertInitializerList)
         rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
             alloc);
 
-        EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
         heap.allocCount = heap.freeCount = 0;
         auto insert_pos = ++list.begin();
         // InsertSome doesn't modify the list when allocations fail
@@ -1574,15 +1626,17 @@ TEST(ListTest, InsertInitializerList)
         ListEqual(list, { 1, 2, 3 });
     }
 }
+#endif
 
 TEST(ListTest, InsertCount)
 {
     {
         rad::List<int> dest;
-        EXPECT_TRUE(dest.AssignInitializerList({ 0, 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            dest.AssignRange(std::initializer_list<int>{ 0, 1, 2, 3 }).IsOk());
 
-        rad::Res<rad::List<int>::Iterator> it;
-        rad::List<int>::Iterator insert_pos;
+        rad::Res<rad::List<int>::IteratorType> it;
+        rad::List<int>::IteratorType insert_pos;
         insert_pos = ++dest.begin();
         it = dest.InsertCount(insert_pos, 2, 100);
         EXPECT_EQ(it, ++dest.begin());
@@ -1601,7 +1655,8 @@ TEST(ListTest, InsertCount)
         rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
             alloc);
 
-        EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
         heap.allocCount = heap.freeCount = 0;
         auto insert_pos = ++list.begin();
         // InsertSome doesn't modify the list when allocations fail
@@ -1624,7 +1679,8 @@ TEST(ListTest, Clone)
         ASSERT_TRUE(empty_clone.IsOk());
         ASSERT_TRUE(empty_clone.Ok().Empty());
 
-        EXPECT_TRUE(li.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            li.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
 
         rad::Res<rad::List<int>> li2 = li.Clone();
         ASSERT_TRUE(li2.IsOk());
@@ -1636,7 +1692,8 @@ TEST(ListTest, Clone)
         rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
             alloc);
 
-        EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
         heap.allocCount = heap.freeCount = 0;
 
         auto success_clone_res = list.Clone();
@@ -1674,8 +1731,8 @@ struct EraseSomeExhaustive_data
     int begin;
     int end;
     rad::List<int> list;
-    rad::List<int>::Iterator begin_iter;
-    rad::List<int>::Iterator end_iter;
+    rad::List<int>::IteratorType begin_iter;
+    rad::List<int>::IteratorType end_iter;
 
     void BuildList()
     {
@@ -1697,7 +1754,7 @@ struct EraseSomeExhaustive_data
 
     void Verify(const std::string& case_id)
     {
-        EXPECT_EQ(list.ExpensiveSize(), size - (end - begin)) << case_id;
+        EXPECT_EQ((int)list.ExpensiveSize(), size - (end - begin)) << case_id;
         int i = 0;
         for (auto it = list.begin(); it != list.end(); ++it, ++i)
         {
@@ -1761,7 +1818,7 @@ struct EraseOneExhaustive_data
     int size;
     int pos;
     rad::List<int> list;
-    rad::List<int>::Iterator pos_iter;
+    rad::List<int>::IteratorType pos_iter;
 
     void BuildList()
     {
@@ -1778,7 +1835,7 @@ struct EraseOneExhaustive_data
 
     void Verify(const std::string& case_id)
     {
-        EXPECT_EQ(list.ExpensiveSize(), size - 1) << case_id;
+        EXPECT_EQ((int)list.ExpensiveSize(), size - 1) << case_id;
         int i = 0;
         for (auto it = list.begin(); it != list.end(); ++it, ++i)
         {
@@ -1805,7 +1862,7 @@ struct EraseOneExhaustive_data
 
         BuildList();
 
-        rad::List<int>::Iterator expected_iter = pos_iter;
+        rad::List<int>::IteratorType expected_iter = pos_iter;
         ++expected_iter;
 
         auto ret_iter = list.EraseOne(pos_iter);
@@ -1836,15 +1893,15 @@ TEST(ListTest, EraseOneEnd)
     EXPECT_EQ(list.end(), list.EraseOne(list.end()));
     EXPECT_TRUE(list.Empty());
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1 }).IsOk());
     EXPECT_EQ(list.end(), list.EraseOne(list.end()));
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2 }).IsOk());
     EXPECT_EQ(list.end(), list.EraseOne(list.end()));
     ListEqual(list, { 1, 2 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
     EXPECT_EQ(list.end(), list.EraseOne(list.end()));
     ListEqual(list, { 1, 2, 3 });
 }
@@ -1854,23 +1911,24 @@ TEST(ListTest, EraseValue)
     rad::List<int> list;
     EXPECT_EQ(0u, list.EraseValue(42));
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1 }).IsOk());
     EXPECT_EQ(0u, list.EraseValue(42));
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 42 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 42 }).IsOk());
     EXPECT_EQ(1u, list.EraseValue(42));
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 42, 1 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 42, 1 }).IsOk());
     EXPECT_EQ(1u, list.EraseValue(42));
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 42, 42 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 42, 42 }).IsOk());
     EXPECT_EQ(2u, list.EraseValue(42));
     EXPECT_TRUE(list.Empty());
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 42, 1 }).IsOk());
+    EXPECT_TRUE(
+        list.AssignRange(std::initializer_list<int>{ 1, 42, 1 }).IsOk());
     EXPECT_EQ(1u, list.EraseValue(42));
     ListEqual(list, { 1, 1 });
 
@@ -1885,23 +1943,24 @@ TEST(ListTest, EraseIf)
     rad::List<int> list;
     EXPECT_EQ(0u, list.EraseIf(is_even));
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1 }).IsOk());
     EXPECT_EQ(0u, list.EraseIf(is_even));
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 42 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 42 }).IsOk());
     EXPECT_EQ(1u, list.EraseIf(is_even));
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 42, 1 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 42, 1 }).IsOk());
     EXPECT_EQ(1u, list.EraseIf(is_even));
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 42, 42 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 42, 42 }).IsOk());
     EXPECT_EQ(2u, list.EraseIf(is_even));
     EXPECT_TRUE(list.Empty());
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 42, 1 }).IsOk());
+    EXPECT_TRUE(
+        list.AssignRange(std::initializer_list<int>{ 1, 42, 1 }).IsOk());
     EXPECT_EQ(1u, list.EraseIf(is_even));
     ListEqual(list, { 1, 1 });
 
@@ -1913,7 +1972,8 @@ TEST(ListTest, EraseIf)
 TEST(ListTest, PopFront)
 {
     rad::List<int> list;
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+    EXPECT_TRUE(
+        list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 }).IsOk());
 
     list.PopFront();
     ListEqual(list, { 2, 3, 4, 5 });
@@ -1926,14 +1986,17 @@ TEST(ListTest, PopFront)
     list.PopFront();
     EXPECT_TRUE(list.Empty());
 
+#if !RAD_DBG
     list.PopFront();
     EXPECT_TRUE(list.Empty());
+#endif
 }
 
 TEST(ListTest, PopBack)
 {
     rad::List<int> list;
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+    EXPECT_TRUE(
+        list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 }).IsOk());
 
     list.PopBack();
     ListEqual(list, { 1, 2, 3, 4 });
@@ -1946,8 +2009,10 @@ TEST(ListTest, PopBack)
     list.PopBack();
     EXPECT_TRUE(list.Empty());
 
+#if !RAD_DBG
     list.PopBack();
     EXPECT_TRUE(list.Empty());
+#endif
 }
 
 TEST(ListTest, Reverse)
@@ -1956,19 +2021,20 @@ TEST(ListTest, Reverse)
     list.Reverse();
     EXPECT_TRUE(list.Empty());
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1 }).IsOk());
     list.Reverse();
     ListEqual(list, { 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2 }).IsOk());
     list.Reverse();
     ListEqual(list, { 2, 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3 }).IsOk());
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
     list.Reverse();
     ListEqual(list, { 3, 2, 1 });
 
-    EXPECT_TRUE(list.AssignInitializerList({ 1, 2, 3, 4 }).IsOk());
+    EXPECT_TRUE(
+        list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4 }).IsOk());
     list.Reverse();
     ListEqual(list, { 4, 3, 2, 1 });
 }
@@ -1985,7 +2051,9 @@ TEST(ListTest, ReverseIterators)
     }
     {
         rad::List<int> list1;
-        EXPECT_TRUE(list1.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+        EXPECT_TRUE(
+            list1.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
 
         rad::List<int> list2;
         EXPECT_TRUE(list2.AssignSome(list1.rbegin(), list1.rend()).IsOk());
@@ -2002,7 +2070,9 @@ TEST(ListTest, ReverseIterators)
     }
     {
         rad::List<int> list1;
-        EXPECT_TRUE(list1.AssignInitializerList({ 1, 2, 3, 4, 5 }).IsOk());
+        EXPECT_TRUE(
+            list1.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
 
         rad::List<int> list2;
         EXPECT_TRUE(list2.AssignSome(list1.crbegin(), list1.crend()).IsOk());

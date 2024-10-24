@@ -15,8 +15,8 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
-#include "radiant/Memory.h"
-#include "radiant/Res.h"
+// rad::Forward needs radiant/Utility.h
+#include "radiant/Utility.h" // NOLINT(misc-include-cleaner)
 
 #include <stddef.h>
 
@@ -27,7 +27,7 @@
 namespace rad
 {
 
-template <typename T, typename TAllocator RAD_ALLOCATOR_EQ(T)>
+template <typename T, typename TAllocator>
 class List;
 
 namespace detail
@@ -112,7 +112,7 @@ public:
     template <class... Args>
     explicit ListNode(Args&&... args)
         : ListBasicNode(),
-          m_elt(static_cast<Args&&>(args)...)
+          m_elt(Forward<Args>(args)...)
     {
     }
 
@@ -405,15 +405,6 @@ public:
 
     ListBasicNode m_head;
 };
-
-inline ::rad::Err ToErr(void* ptr)
-{
-    if (ptr == nullptr)
-    {
-        return Error::NoMemory;
-    }
-    return EmptyOkType{};
-}
 
 } // namespace detail
 

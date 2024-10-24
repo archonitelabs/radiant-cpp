@@ -17,6 +17,7 @@
 #include "radiant/TotallyRad.h"
 #include "radiant/EmptyOptimizedPair.h"
 #include "radiant/Iterator.h"
+#include "radiant/Memory.h"
 #include "radiant/Res.h"
 #include "radiant/detail/ListOperations.h"
 
@@ -82,7 +83,7 @@ namespace rad
     @tparam T - Value type held by the list
     @tparam TAllocator - Allocator to use.
 */
-template <typename T, typename TAllocator>
+template <typename T, typename TAllocator RAD_ALLOCATOR_EQ(T)>
 class List
 {
 public:
@@ -90,16 +91,16 @@ public:
     // types
     using ValueType = T;
     using AllocatorType = TAllocator;
-    using Pointer = T*;
-    using ConstPointer = const T*;
-    using Reference = ValueType&;
-    using ConstReference = const ValueType&;
+    using PointerType = T*;
+    using ConstPointerType = const T*;
+    using ReferenceType = ValueType&;
+    using ConstReferenceType = const ValueType&;
     using SizeType = size_t;
     using DifferenceType = ptrdiff_t;
-    using Iterator = ::rad::detail::ListIterator<T>;
-    using ConstIterator = ::rad::detail::ListConstIterator<T>;
-    using ReverseIterator = ::rad::ReverseIterator<Iterator>;
-    using ConstReverseIterator = ::rad::ReverseIterator<ConstIterator>;
+    using IteratorType = ::rad::detail::ListIterator<T>;
+    using ConstIteratorType = ::rad::detail::ListConstIterator<T>;
+    using ReverseIteratorType = ReverseIterator<IteratorType>;
+    using ConstReverseIteratorType = ReverseIterator<ConstIteratorType>;
 
     using Rebound =
         typename TAllocator::template Rebind<::rad::detail::ListNode<T>>::Other;
@@ -113,7 +114,7 @@ public:
     RAD_NOT_COPYABLE(List);
 
     List(List&& x) noexcept
-        : m_storage(static_cast<AllocatorType&&>(x.m_storage.First()))
+        : m_storage(::rad::Move(x.m_storage.First()))
     {
         m_storage.Second().Swap(x.m_storage.Second());
     }
@@ -134,7 +135,7 @@ public:
     {
         List local(m_storage.First());
         return local.AssignSomeImpl(this->begin(), this->end())
-            .OnOk(static_cast<List&&>(local));
+            .OnOk(::rad::Move(local));
     }
 
     AllocatorType GetAllocator() const noexcept
@@ -143,54 +144,54 @@ public:
     }
 
     // iterators
-    RAD_NODISCARD Iterator begin() noexcept
+    RAD_NODISCARD IteratorType begin() noexcept
     {
-        return Iterator(m_storage.Second().m_head.m_next);
+        return IteratorType(m_storage.Second().m_head.m_next);
     }
 
-    RAD_NODISCARD ConstIterator begin() const noexcept
+    RAD_NODISCARD ConstIteratorType begin() const noexcept
     {
-        return ConstIterator(m_storage.Second().m_head.m_next);
+        return ConstIteratorType(m_storage.Second().m_head.m_next);
     }
 
-    RAD_NODISCARD Iterator end() noexcept
+    RAD_NODISCARD IteratorType end() noexcept
     {
-        return Iterator(&m_storage.Second().m_head);
+        return IteratorType(&m_storage.Second().m_head);
     }
 
-    RAD_NODISCARD ConstIterator end() const noexcept
+    RAD_NODISCARD ConstIteratorType end() const noexcept
     {
-        return ConstIterator(&m_storage.Second().m_head);
+        return ConstIteratorType(&m_storage.Second().m_head);
     }
 
-    RAD_NODISCARD ConstIterator cbegin() const noexcept
+    RAD_NODISCARD ConstIteratorType cbegin() const noexcept
     {
-        return ConstIterator(m_storage.Second().m_head.m_next);
+        return ConstIteratorType(m_storage.Second().m_head.m_next);
     }
 
-    RAD_NODISCARD ConstIterator cend() const noexcept
+    RAD_NODISCARD ConstIteratorType cend() const noexcept
     {
-        return ConstIterator(&m_storage.Second().m_head);
+        return ConstIteratorType(&m_storage.Second().m_head);
     }
 
-    RAD_NODISCARD ReverseIterator rbegin() noexcept
+    RAD_NODISCARD ReverseIteratorType rbegin() noexcept
     {
-        return ReverseIterator(end());
+        return ReverseIteratorType(end());
     }
 
-    RAD_NODISCARD ReverseIterator rend() noexcept
+    RAD_NODISCARD ReverseIteratorType rend() noexcept
     {
-        return ReverseIterator(begin());
+        return ReverseIteratorType(begin());
     }
 
-    RAD_NODISCARD ConstReverseIterator crbegin() noexcept
+    RAD_NODISCARD ConstReverseIteratorType crbegin() noexcept
     {
-        return ConstReverseIterator(cend());
+        return ConstReverseIteratorType(cend());
     }
 
-    RAD_NODISCARD ConstReverseIterator crend() noexcept
+    RAD_NODISCARD ConstReverseIteratorType crend() noexcept
     {
-        return ConstReverseIterator(cbegin());
+        return ConstReverseIteratorType(cbegin());
     }
 
     RAD_NODISCARD bool Empty() const noexcept
@@ -211,18 +212,18 @@ public:
     }
 
     template <class InputIterator>
-    ::rad::Err AssignSome(InputIterator first, InputIterator last)
+    Err AssignSome(InputIterator first, InputIterator last)
     {
         return AssignSomeImpl(first, last);
     }
 
     template <typename InputRange>
-    ::rad::Err AssignRange(InputRange&& rg)
+    Err AssignRange(InputRange&& rg)
     {
         return AssignSomeImpl(rg.begin(), rg.end());
     }
 
-    ::rad::Err AssignCount(SizeType n, const T& t)
+    Err AssignCount(SizeType n, const T& t)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -240,7 +241,7 @@ public:
     }
 
 #if RAD_ENABLE_STD
-    ::rad::Err AssignInitializerList(std::initializer_list<T> il)
+    Err AssignInitializerList(std::initializer_list<T> il)
     {
         return AssignSomeImpl(il.begin(), il.end());
     }
@@ -254,64 +255,64 @@ public:
     // ConstReference back() const;
 
     template <class... Args>
-    ::rad::Err EmplaceFront(Args&&... args)
+    Err EmplaceFront(Args&&... args)
     {
-        return ::rad::detail::ToErr(
-            EmplacePtr(cbegin(), static_cast<Args&&>(args)...));
+        return ::rad::ErrIfNull(EmplacePtr(cbegin(), Forward<Args>(args)...));
     }
 
     template <class... Args>
-    ::rad::Err EmplaceBack(Args&&... args)
+    Err EmplaceBack(Args&&... args)
     {
-        return ::rad::detail::ToErr(
-            EmplacePtr(cend(), static_cast<Args&&>(args)...));
+        return ::rad::ErrIfNull(EmplacePtr(cend(), Forward<Args>(args)...));
     }
 
-    ::rad::Err PushFront(const T& x)
+    Err PushFront(const T& x)
     {
-        return ::rad::detail::ToErr(EmplacePtr(cbegin(), x));
+        return ::rad::ErrIfNull(EmplacePtr(cbegin(), x));
     }
 
-    ::rad::Err PushFront(T&& x)
+    Err PushFront(T&& x)
     {
-        return ::rad::detail::ToErr(EmplacePtr(cbegin(), static_cast<T&&>(x)));
+        return ::rad::ErrIfNull(EmplacePtr(cbegin(), ::rad::Move(x)));
     }
 
-    ::rad::Err PushBack(const T& x)
+    Err PushBack(const T& x)
     {
-        return ::rad::detail::ToErr(EmplacePtr(cend(), x));
+        return ::rad::ErrIfNull(EmplacePtr(cend(), x));
     }
 
-    ::rad::Err PushBack(T&& x)
+    Err PushBack(T&& x)
     {
-        return ::rad::detail::ToErr(EmplacePtr(cend(), static_cast<T&&>(x)));
-    }
-
-    template <typename InputRange>
-    ::rad::Err PrependRange(InputRange&& rg)
-    {
-        return ::rad::detail::ToErr(
-            InsertSomeImpl(cbegin(), rg.begin(), rg.end()));
+        return ::rad::ErrIfNull(EmplacePtr(cend(), ::rad::Move(x)));
     }
 
     template <typename InputRange>
-    ::rad::Err AppendRange(InputRange&& rg)
+    Err PrependRange(InputRange&& rg)
     {
-        return ::rad::detail::ToErr(
-            InsertSomeImpl(cend(), rg.begin(), rg.end()));
+        return ::rad::ErrIfNull(InsertSomeImpl(cbegin(), rg.begin(), rg.end()));
+    }
+
+    template <typename InputRange>
+    Err AppendRange(InputRange&& rg)
+    {
+        return ::rad::ErrIfNull(InsertSomeImpl(cend(), rg.begin(), rg.end()));
     }
 
     // Calling PopFront or PopBack while the container is empty is erroneous
     // behavior. It's wrong to do it, and we can diagnose it in debug mode, but
     // in release mode we will instead do nothing.
-    void PopFront()
+    List& PopFront()
     {
+        RAD_ASSERT(!Empty());
         EraseOne(begin());
+        return *this;
     }
 
-    void PopBack()
+    List& PopBack()
     {
+        RAD_ASSERT(!Empty());
         EraseOne(--end());
+        return *this;
     }
 
     // The Insert and Emplace functions provide the strong error
@@ -319,24 +320,26 @@ public:
     // changing the container, invalidating iterators, or invalidating
     // references.
     template <class... Args>
-    RAD_NODISCARD Res<Iterator> Emplace(ConstIterator position, Args&&... args)
+    RAD_NODISCARD Res<IteratorType> Emplace(ConstIteratorType position,
+                                            Args&&... args)
     {
-        return ToRes(EmplacePtr(position, static_cast<Args&&>(args)...));
+        return ToRes(EmplacePtr(position, Forward<Args>(args)...));
     }
 
-    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, const T& x)
+    RAD_NODISCARD Res<IteratorType> Insert(ConstIteratorType position,
+                                           const T& x)
     {
         return ToRes(EmplacePtr(position, x));
     }
 
-    RAD_NODISCARD Res<Iterator> Insert(ConstIterator position, T&& x)
+    RAD_NODISCARD Res<IteratorType> Insert(ConstIteratorType position, T&& x)
     {
-        return ToRes(EmplacePtr(position, static_cast<T&&>(x)));
+        return ToRes(EmplacePtr(position, ::rad::Move(x)));
     }
 
-    RAD_NODISCARD Res<Iterator> InsertCount(ConstIterator position,
-                                            SizeType n,
-                                            const T& x)
+    RAD_NODISCARD Res<IteratorType> InsertCount(ConstIteratorType position,
+                                                SizeType n,
+                                                const T& x)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -352,39 +355,40 @@ public:
             m_storage.Second().SpliceSome(position.m_node,
                                           local.begin().m_node,
                                           local.end().m_node);
-        return Iterator{ new_pos };
+        return IteratorType{ new_pos };
     }
 
     template <class InputIterator>
-    RAD_NODISCARD Res<Iterator> InsertSome(ConstIterator position,
-                                           InputIterator first,
-                                           InputIterator last)
+    RAD_NODISCARD Res<IteratorType> InsertSome(ConstIteratorType position,
+                                               InputIterator first,
+                                               InputIterator last)
 
     {
         return ToRes(InsertSomeImpl(position, first, last));
     }
 
     template <typename InputRange>
-    RAD_NODISCARD Res<Iterator> InsertRange(ConstIterator position,
-                                            InputRange&& rg)
+    RAD_NODISCARD Res<IteratorType> InsertRange(ConstIteratorType position,
+                                                InputRange&& rg)
     {
         return ToRes(InsertSomeImpl(position, rg.begin(), rg.end()));
     }
 
 #if RAD_ENABLE_STD
-    RAD_NODISCARD Res<Iterator> InsertInitializerList(
-        ConstIterator position, std::initializer_list<T> il)
+    RAD_NODISCARD Res<IteratorType> InsertInitializerList(
+        ConstIteratorType position, std::initializer_list<T> il)
     {
         return ToRes(InsertSomeImpl(position, il.begin(), il.end()));
     }
 #endif
 
-    void Clear() noexcept
+    List& Clear() noexcept
     {
         EraseSome(begin(), end());
+        return *this;
     }
 
-    Iterator EraseOne(ConstIterator position)
+    IteratorType EraseOne(ConstIteratorType position)
     {
         if (position == cend())
         {
@@ -401,16 +405,16 @@ public:
         typed->~ListNode();
         ReboundAlloc().Free(typed);
 
-        return Iterator(retnode);
+        return IteratorType(retnode);
     }
 
-    Iterator EraseSome(ConstIterator position, ConstIterator last)
+    IteratorType EraseSome(ConstIteratorType position, ConstIteratorType last)
     {
         ::rad::detail::ListBasicNode* cur = position.m_node;
         ::rad::detail::ListBasicNode* end = last.m_node;
         if (cur == end)
         {
-            return Iterator(end);
+            return IteratorType(end);
         }
         cur->CheckSanityBeforeRelinking();
         end->CheckSanityBeforeRelinking();
@@ -426,13 +430,13 @@ public:
             typed->~ListNode();
             ReboundAlloc().Free(typed);
         }
-        return Iterator(end);
+        return IteratorType(end);
     }
 
     SizeType EraseValue(const T& value)
     {
         SizeType count = 0;
-        Iterator i = begin();
+        IteratorType i = begin();
         while (i != end())
         {
             if (*i == value)
@@ -452,7 +456,7 @@ public:
     SizeType EraseIf(Predicate pred)
     {
         SizeType count = 0;
-        Iterator i = begin();
+        IteratorType i = begin();
         while (i != end())
         {
             if (pred(*i))
@@ -468,14 +472,15 @@ public:
         return count;
     }
 
-    void Swap(List& x) noexcept
+    List& Swap(List& x) noexcept
     {
         {
-            TAllocator temp = static_cast<TAllocator&&>(m_storage.First());
-            m_storage.First() = static_cast<TAllocator&&>(x.m_storage.First());
-            x.m_storage.First() = static_cast<TAllocator&&>(temp);
+            TAllocator temp = ::rad::Move(m_storage.First());
+            m_storage.First() = ::rad::Move(x.m_storage.First());
+            x.m_storage.First() = ::rad::Move(temp);
         }
         m_storage.Second().Swap(x.m_storage.Second());
+        return *this;
     }
 
     // The list parameter to the splice functions is mostly unused.  It's
@@ -483,73 +488,80 @@ public:
     // access to the source list.  If we want to support unequal allocators,
     // then we'll need access to the source list.  We'll also need to add an
     // error channel if we support unequal allocators.
-    void SpliceAll(ConstIterator position, List& x)
+    List& SpliceAll(ConstIteratorType position, List& x)
     {
         m_storage.Second().SpliceSome(position.m_node,
                                       x.begin().m_node,
                                       x.end().m_node);
+        return *this;
     }
 
-    void SpliceAll(ConstIterator position, List&& x)
+    List& SpliceAll(ConstIteratorType position, List&& x)
     {
         m_storage.Second().SpliceSome(position.m_node,
                                       x.begin().m_node,
                                       x.end().m_node);
+        return *this;
     }
 
-    void SpliceOne(ConstIterator position, List& x, ConstIterator i)
+    List& SpliceOne(ConstIteratorType position, List& x, ConstIteratorType i)
     {
         RAD_UNUSED(x);
         m_storage.Second().SpliceOne(position.m_node, i.m_node);
+        return *this;
     }
 
-    void SpliceOne(ConstIterator position, List&& x, ConstIterator i)
+    List& SpliceOne(ConstIteratorType position, List&& x, ConstIteratorType i)
     {
         RAD_UNUSED(x);
         m_storage.Second().SpliceOne(position.m_node, i.m_node);
+        return *this;
     }
 
-    void SpliceSome(ConstIterator position,
-                    List& x,
-                    ConstIterator first,
-                    ConstIterator last)
+    List& SpliceSome(ConstIteratorType position,
+                     List& x,
+                     ConstIteratorType first,
+                     ConstIteratorType last)
     {
         RAD_UNUSED(x);
         m_storage.Second().SpliceSome(position.m_node,
                                       first.m_node,
                                       last.m_node);
+        return *this;
     }
 
-    void SpliceSome(ConstIterator position,
-                    List&& x,
-                    ConstIterator first,
-                    ConstIterator last)
+    List& SpliceSome(ConstIteratorType position,
+                     List&& x,
+                     ConstIteratorType first,
+                     ConstIteratorType last)
     {
         RAD_UNUSED(x);
         m_storage.Second().SpliceSome(position.m_node,
                                       first.m_node,
                                       last.m_node);
+        return *this;
     }
 
-    void Reverse() noexcept
+    List& Reverse() noexcept
     {
         m_storage.Second().Reverse();
+        return *this;
     }
 
 private:
 
-    Res<Iterator> ToRes(::rad::detail::ListBasicNode* ptr)
+    Res<IteratorType> ToRes(::rad::detail::ListBasicNode* ptr)
     {
         if (ptr == nullptr)
         {
             return Error::NoMemory;
         }
-        return Iterator(ptr);
+        return IteratorType(ptr);
     }
 
     template <class... Args>
-    RAD_NODISCARD ::rad::detail::ListNode<T>* EmplacePtr(ConstIterator position,
-                                                         Args&&... args)
+    RAD_NODISCARD ::rad::detail::ListNode<T>* EmplacePtr(
+        ConstIteratorType position, Args&&... args)
     {
         ::rad::detail::ListNode<T>* storage = ReboundAlloc().Alloc(1);
         if (storage == nullptr)
@@ -557,8 +569,8 @@ private:
             return nullptr;
         }
         // forward to placement new
-        ::rad::detail::ListNode<T>* new_node = new (
-            storage)::rad::detail::ListNode<T>(static_cast<Args&&>(args)...);
+        ::rad::detail::ListNode<T>* new_node =
+            new (storage)::rad::detail::ListNode<T>(Forward<Args>(args)...);
 
         // insert the new node before passed in position
         m_storage.Second().AttachNewNode(position.m_node, new_node);
@@ -568,7 +580,7 @@ private:
 
     template <typename InputIter1, typename InputIter2>
     RAD_NODISCARD ::rad::detail::ListBasicNode* InsertSomeImpl(
-        ConstIterator position, InputIter1 first, InputIter2 last)
+        ConstIteratorType position, InputIter1 first, InputIter2 last)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -588,7 +600,7 @@ private:
     }
 
     template <typename InputIter1, typename InputIter2>
-    ::rad::Err AssignSomeImpl(InputIter1 first, InputIter2 last)
+    Err AssignSomeImpl(InputIter1 first, InputIter2 last)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -610,7 +622,7 @@ private:
         return m_storage.First();
     }
 
-    ::rad::EmptyOptimizedPair<TAllocator, ::rad::detail::ListUntyped> m_storage;
+    EmptyOptimizedPair<TAllocator, ::rad::detail::ListUntyped> m_storage;
 };
 
 } // namespace rad
