@@ -1024,15 +1024,20 @@ TEST_F(TestVectorIntegral, Float)
     EXPECT_EQ(vec.At(2), 3.3f);
 }
 
-TEST_F(TestVectorIntegral, RemoveBack)
+TEST_F(TestVectorIntegral, TakeBack)
 {
     rad::Vector<int> vec;
 
     EXPECT_TRUE(vec.Assign({ 1, 2, 3 }).IsOk());
 
-    EXPECT_EQ(vec.RemoveBack(), 3);
-    EXPECT_EQ(vec.RemoveBack(), 2);
-    EXPECT_EQ(vec.RemoveBack(), 1);
+    EXPECT_EQ(vec.Size(), 3u);
+    EXPECT_EQ(vec.TakeBack(), 3);
+    EXPECT_EQ(vec.Size(), 2u);
+    EXPECT_EQ(vec.TakeBack(), 2);
+    EXPECT_EQ(vec.Size(), 1u);
+    EXPECT_EQ(vec.TakeBack(), 1);
+    EXPECT_EQ(vec.Size(), 0u);
+    EXPECT_TRUE(vec.Empty());
 }
 
 TEST_F(TestVectorIntegral, Seek)

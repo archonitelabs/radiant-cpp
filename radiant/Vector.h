@@ -388,9 +388,10 @@ public:
         return *this;
     }
 
-    /// @brief Removes an element from back of the container.
-    /// @return Removed element.
-    ValueType RemoveBack() noexcept
+    /// @brief Takes an element from back of the container. The element is moved
+    /// out of and then removed from the back of the container.
+    /// @return Taken element.
+    ValueType TakeBack() noexcept
     {
         auto value = rad::Move(Back());
         PopBack();
