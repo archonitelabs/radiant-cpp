@@ -157,12 +157,14 @@ struct CopyStruct
     CopyStruct(const CopyStruct&) = default;
     CopyStruct& operator=(const CopyStruct&) = default;
 
+    // intentionally noexcept(false)
     CopyStruct(CopyStruct&& other)
         : val(other.val)
     {
         other.val = -1;
     }
 
+    // intentionally noexcept(false)
     CopyStruct& operator=(CopyStruct&& other)
     {
         val = other.val;
@@ -2015,6 +2017,122 @@ TEST(ListTest, PopBack)
 #endif
 }
 
+TEST(ListTest, TakeFront)
+{
+    {
+        rad::List<int> list;
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
+
+        EXPECT_EQ(list.TakeFront(), 1);
+        ListEqual(list, { 2, 3, 4, 5 });
+        EXPECT_EQ(list.TakeFront(), 2);
+        ListEqual(list, { 3, 4, 5 });
+        EXPECT_EQ(list.TakeFront(), 3);
+        ListEqual(list, { 4, 5 });
+        EXPECT_EQ(list.TakeFront(), 4);
+        ListEqual(list, { 5 });
+        EXPECT_EQ(list.TakeFront(), 5);
+        EXPECT_TRUE(list.Empty());
+
+        EXPECT_TRUE(list.TakeFront().IsErr());
+        EXPECT_TRUE(list.Empty());
+    }
+    {
+        rad::List<MoveStruct> list;
+        EXPECT_TRUE(list.EmplaceFront().IsOk());
+
+        EXPECT_EQ(list.TakeFront().Ok().val, 42);
+
+        EXPECT_TRUE(list.TakeFront().IsErr());
+        EXPECT_TRUE(list.Empty());
+    }
+#if 0
+    {
+        // This intentionally does not build, because ImmovableStruct is immovable
+        rad::List<ImmovableStruct> list;
+        list.TakeFront();
+    }
+#endif
+#if 0
+    {
+        // This intentionally does not build, because CopyStruct has a throwing move
+        rad::List<CopyStruct> list;
+        list.TakeFront();
+    }
+#endif
+    {
+        rad::List<rad::Error> list;
+        EXPECT_TRUE(list.PushBack(rad::Error::InvalidAddress).IsOk());
+        auto res = list.TakeFront();
+        EXPECT_TRUE(res.IsOk());
+        EXPECT_EQ(res.Ok(), rad::Error::InvalidAddress);
+
+        auto res2 = list.TakeFront();
+        EXPECT_TRUE(res2.IsErr());
+        EXPECT_EQ(res2.Err(), rad::Error::OutOfRange);
+    }
+}
+
+TEST(ListTest, TakeBack)
+{
+    {
+        rad::List<int> list;
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
+
+        EXPECT_EQ(list.TakeBack(), 5);
+        ListEqual(list, { 1, 2, 3, 4 });
+        EXPECT_EQ(list.TakeBack(), 4);
+        ListEqual(list, { 1, 2, 3 });
+        EXPECT_EQ(list.TakeBack(), 3);
+        ListEqual(list, { 1, 2 });
+        EXPECT_EQ(list.TakeBack(), 2);
+        ListEqual(list, { 1 });
+        EXPECT_EQ(list.TakeBack(), 1);
+        EXPECT_TRUE(list.Empty());
+
+        EXPECT_TRUE(list.TakeBack().IsErr());
+        EXPECT_TRUE(list.Empty());
+    }
+    {
+        rad::List<MoveStruct> list;
+        EXPECT_TRUE(list.EmplaceFront().IsOk());
+
+        EXPECT_EQ(list.TakeBack().Ok().val, 42);
+
+        EXPECT_TRUE(list.TakeBack().IsErr());
+        EXPECT_TRUE(list.Empty());
+    }
+#if 0
+    {
+        // This intentionally does not build, because ImmovableStruct is immovable
+        rad::List<ImmovableStruct> list;
+        list.TakeBack();
+    }
+#endif
+#if 0
+    {
+        // This intentionally does not build, because CopyStruct has a throwing move
+        rad::List<CopyStruct> list;
+        list.TakeBack();
+    }
+#endif
+    {
+        rad::List<rad::Error> list;
+        EXPECT_TRUE(list.PushBack(rad::Error::InvalidAddress).IsOk());
+        auto res = list.TakeBack();
+        EXPECT_TRUE(res.IsOk());
+        EXPECT_EQ(res.Ok(), rad::Error::InvalidAddress);
+
+        auto res2 = list.TakeBack();
+        EXPECT_TRUE(res2.IsErr());
+        EXPECT_EQ(res2.Err(), rad::Error::OutOfRange);
+    }
+}
+
 TEST(ListTest, Reverse)
 {
     rad::List<int> list;
@@ -2037,6 +2155,46 @@ TEST(ListTest, Reverse)
         list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4 }).IsOk());
     list.Reverse();
     ListEqual(list, { 4, 3, 2, 1 });
+}
+
+TEST(ListTest, FrontBack)
+{
+    {
+        rad::List<int> list;
+        const rad::List<int>& clist = list;
+
+        EXPECT_TRUE(list.Front().IsErr());
+        EXPECT_TRUE(list.Back().IsErr());
+        EXPECT_TRUE(clist.Front().IsErr());
+        EXPECT_TRUE(clist.Back().IsErr());
+    }
+    {
+        rad::List<int> list;
+        EXPECT_TRUE(
+            list.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
+        EXPECT_EQ(list.Front(), 1);
+        EXPECT_EQ(list.Back(), 5);
+
+        const rad::List<int>& clist = list;
+        EXPECT_EQ(clist.Front(), 1);
+        EXPECT_EQ(clist.Back(), 5);
+
+        // ensure Res::op= rebinds, and doesn't assign through
+        int val = 42;
+        auto res = list.Front();
+        res = val;
+        EXPECT_EQ(res.Ok(), 42);
+        EXPECT_EQ(list.Front(), 1);
+
+        res = list.Front();
+        *res = val; // ensure *res::op= assigns through
+        EXPECT_EQ(list.Front(), 42);
+
+        res = list.Back();
+        *res = 99;
+        EXPECT_EQ(list.Back(), 99);
+    }
 }
 
 TEST(ListTest, ReverseIterators)

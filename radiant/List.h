@@ -105,6 +105,12 @@ public:
     using Rebound =
         typename TAllocator::template Rebind<::rad::detail::ListNode<T>>::Other;
 
+    // Not asserting noexcept movability on T, as we mostly don't need to move
+    // types once they are constructed.  We support immovable types like
+    // mutexes.  The Take* functions assert on noexcept movability since they
+    // do move contained elements.
+    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAllocator);
+
     ~List()
     {
         Clear();
@@ -212,18 +218,18 @@ public:
     }
 
     template <class InputIterator>
-    Err AssignSome(InputIterator first, InputIterator last)
+    Res<List&> AssignSome(InputIterator first, InputIterator last)
     {
         return AssignSomeImpl(first, last);
     }
 
     template <typename InputRange>
-    Err AssignRange(InputRange&& rg)
+    Res<List&> AssignRange(InputRange&& rg)
     {
         return AssignSomeImpl(rg.begin(), rg.end());
     }
 
-    Err AssignCount(SizeType n, const T& t)
+    Res<List&> AssignCount(SizeType n, const T& t)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -237,65 +243,94 @@ public:
         }
         // using m_list Swap so that we don't need to swap allocators
         m_storage.Second().Swap(local.m_storage.Second());
-        return EmptyOkType{};
+        return *this;
     }
 
 #if RAD_ENABLE_STD
-    Err AssignInitializerList(std::initializer_list<T> il)
+    Res<List&> AssignInitializerList(std::initializer_list<T> il)
     {
         return AssignSomeImpl(il.begin(), il.end());
     }
 #endif
 
-    // Error handling needs work on these.  Deal with this later.
-    // Maybe by having Res support reference types
-    // Reference      front();
-    // ConstReference front() const;
-    // Reference      back();
-    // ConstReference back() const;
-
-    template <class... Args>
-    Err EmplaceFront(Args&&... args)
+    Res<ReferenceType> Front()
     {
-        return ::rad::ErrIfNull(EmplacePtr(cbegin(), Forward<Args>(args)...));
+        if (Empty())
+        {
+            return Res<ReferenceType>(ResErrTag, Error::OutOfRange);
+        }
+        return Res<ReferenceType>(ResOkTag, *begin());
+    }
+
+    Res<ConstReferenceType> Front() const
+    {
+        if (Empty())
+        {
+            return Res<ConstReferenceType>(ResErrTag, Error::OutOfRange);
+        }
+        return Res<ConstReferenceType>(ResOkTag, *begin());
+    }
+
+    Res<ReferenceType> Back()
+    {
+        if (Empty())
+        {
+            return Res<ReferenceType>(ResErrTag, Error::OutOfRange);
+        }
+        return Res<ReferenceType>(ResOkTag, *(--end()));
+    }
+
+    Res<ConstReferenceType> Back() const
+    {
+        if (Empty())
+        {
+            return Res<ConstReferenceType>(ResErrTag, Error::OutOfRange);
+        }
+        return Res<ConstReferenceType>(ResOkTag, *(--end()));
     }
 
     template <class... Args>
-    Err EmplaceBack(Args&&... args)
+    Res<List&> EmplaceFront(Args&&... args)
     {
-        return ::rad::ErrIfNull(EmplacePtr(cend(), Forward<Args>(args)...));
+        return ToResSelf(EmplacePtr(cbegin(), Forward<Args>(args)...));
     }
 
-    Err PushFront(const T& x)
+    template <class... Args>
+    Res<List&> EmplaceBack(Args&&... args)
     {
-        return ::rad::ErrIfNull(EmplacePtr(cbegin(), x));
+        return ToResSelf(EmplacePtr(cend(), Forward<Args>(args)...));
     }
 
-    Err PushFront(T&& x)
+    Res<List&> PushFront(const T& x)
     {
-        return ::rad::ErrIfNull(EmplacePtr(cbegin(), ::rad::Move(x)));
+        return ToResSelf(EmplacePtr(cbegin(), x));
     }
 
-    Err PushBack(const T& x)
+    Res<List&> PushFront(T&& x)
     {
-        return ::rad::ErrIfNull(EmplacePtr(cend(), x));
+        return ToResSelf(EmplacePtr(cbegin(), ::rad::Move(x)));
     }
 
-    Err PushBack(T&& x)
+    Res<List&> PushBack(const T& x)
     {
-        return ::rad::ErrIfNull(EmplacePtr(cend(), ::rad::Move(x)));
+        return ToResSelf(EmplacePtr(cend(), x));
+    }
+
+    Res<List&> PushBack(T&& x)
+    {
+        return ToResSelf(EmplacePtr(cend(), ::rad::Move(x)));
     }
 
     template <typename InputRange>
-    Err PrependRange(InputRange&& rg)
+    Res<List&> PrependRange(InputRange&& rg)
     {
-        return ::rad::ErrIfNull(InsertSomeImpl(cbegin(), rg.begin(), rg.end()));
+        return ToResSelf(InsertSomeImpl(cbegin(), rg.begin(), rg.end()));
     }
 
     template <typename InputRange>
-    Err AppendRange(InputRange&& rg)
+    Res<List&> AppendRange(InputRange&& rg)
     {
-        return ::rad::ErrIfNull(InsertSomeImpl(cend(), rg.begin(), rg.end()));
+        return ToResSelf(InsertSomeImpl(cend(), rg.begin(), rg.end()));
     }
 
     // Calling PopFront or PopBack while the container is empty is erroneous
@@ -315,6 +350,35 @@ public:
         return *this;
     }
 
+    // move the first T into the return value and pop it from the list
+    Res<T> TakeFront()
+    {
+        // careful!  T could be rad::Error
+        RAD_S_ASSERT_NOTHROW_MOVE_T(T);
+        if (Empty())
+        {
+            return Res<T>(ResErrTag, Error::OutOfRange);
+        }
+        List local(m_storage.First());
+        local.m_storage.Second().SpliceOne(local.end().m_node, begin().m_node);
+        return Res<T>(ResOkTag, ::rad::Move(*local.begin()));
+    }
+
+    // move the last T into the return value and pop it from the list
+    Res<T> TakeBack()
+    {
+        // careful!  T could be rad::Error
+        RAD_S_ASSERT_NOTHROW_MOVE_T(T);
+        if (Empty())
+        {
+            return Res<T>(ResErrTag, Error::OutOfRange);
+        }
+        List local(m_storage.First());
+        local.m_storage.Second().SpliceOne(local.end().m_node,
+                                           (--end()).m_node);
+        return Res<T>(ResOkTag, ::rad::Move(*local.begin()));
+    }
+
     // The Insert and Emplace functions provide the strong error
     // guarantee.  If they fail, then the function returns without
     // changing the container, invalidating iterators, or invalidating
@@ -323,18 +387,18 @@ public:
     RAD_NODISCARD Res<IteratorType> Emplace(ConstIteratorType position,
                                             Args&&... args)
     {
-        return ToRes(EmplacePtr(position, Forward<Args>(args)...));
+        return ToResIter(EmplacePtr(position, Forward<Args>(args)...));
     }
 
     RAD_NODISCARD Res<IteratorType> Insert(ConstIteratorType position,
                                            const T& x)
     {
-        return ToRes(EmplacePtr(position, x));
+        return ToResIter(EmplacePtr(position, x));
     }
 
     RAD_NODISCARD Res<IteratorType> Insert(ConstIteratorType position, T&& x)
     {
-        return ToRes(EmplacePtr(position, ::rad::Move(x)));
+        return ToResIter(EmplacePtr(position, ::rad::Move(x)));
     }
 
     RAD_NODISCARD Res<IteratorType> InsertCount(ConstIteratorType position,
@@ -364,21 +428,21 @@ public:
                                                InputIterator last)
 
     {
-        return ToRes(InsertSomeImpl(position, first, last));
+        return ToResIter(InsertSomeImpl(position, first, last));
     }
 
     template <typename InputRange>
     RAD_NODISCARD Res<IteratorType> InsertRange(ConstIteratorType position,
                                                 InputRange&& rg)
     {
-        return ToRes(InsertSomeImpl(position, rg.begin(), rg.end()));
+        return ToResIter(InsertSomeImpl(position, rg.begin(), rg.end()));
     }
 
 #if RAD_ENABLE_STD
     RAD_NODISCARD Res<IteratorType> InsertInitializerList(
         ConstIteratorType position, std::initializer_list<T> il)
     {
-        return ToRes(InsertSomeImpl(position, il.begin(), il.end()));
+        return ToResIter(InsertSomeImpl(position, il.begin(), il.end()));
     }
 #endif
 
@@ -550,13 +614,22 @@ public:
 
 private:
 
-    Res<IteratorType> ToRes(::rad::detail::ListBasicNode* ptr)
+    static Res<IteratorType> ToResIter(::rad::detail::ListBasicNode* ptr)
     {
         if (ptr == nullptr)
         {
             return Error::NoMemory;
         }
         return IteratorType(ptr);
+    }
+
+    Res<List&> ToResSelf(const void* ptr)
+    {
+        if (ptr == nullptr)
+        {
+            return Error::NoMemory;
+        }
+        return *this;
     }
 
     template <class... Args>
@@ -600,7 +673,7 @@ private:
     }
 
     template <typename InputIter1, typename InputIter2>
-    Err AssignSomeImpl(InputIter1 first, InputIter2 last)
+    Res<List&> AssignSomeImpl(InputIter1 first, InputIter2 last)
     {
         List local(m_storage.First());
         auto end_iter = local.cend();
@@ -614,7 +687,7 @@ private:
         }
         // using m_list Swap so that we don't need to swap allocators
         m_storage.Second().Swap(local.m_storage.Second());
-        return EmptyOkType{};
+        return *this;
     }
 
     Rebound ReboundAlloc()
