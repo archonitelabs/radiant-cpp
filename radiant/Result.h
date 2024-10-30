@@ -330,8 +330,8 @@ public:
     using typename StorageType::OkType;
     using typename StorageType::ErrType;
 
-    RAD_S_ASSERT_NOTHROW_MOVE_T(T);
-    RAD_S_ASSERT_NOTHROW_MOVE_T(E);
+    RAD_S_ASSERT_NOTHROW_MOVE_T(typename StorageType::OkWrap::ValueType);
+    RAD_S_ASSERT_NOTHROW_MOVE_T(typename StorageType::ErrWrap::ValueType);
 
     constexpr Result() noexcept
         : StorageType(ResultEmptyTag)
