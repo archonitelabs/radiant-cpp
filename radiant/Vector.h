@@ -57,6 +57,8 @@ public:
     RAD_S_ASSERT_NOTHROW_MOVE_T(T);
     RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAllocator);
 
+    RAD_NOT_COPYABLE(Vector);
+
     ~Vector()
     {
         RAD_S_ASSERT_NOTHROW_DTOR(IsNoThrowDtor<T> &&
@@ -67,23 +69,21 @@ public:
     }
 
     /// @brief Constructs empty container with default-constructed allocator.
-    Vector() = default;
+    Vector() noexcept = default;
 
     /// @brief Constructs empty container with copy-constructed allocator.
     /// @param alloc Allocator to copy.
-    explicit Vector(const AllocatorType& alloc)
+    explicit Vector(const AllocatorType& alloc) noexcept
         : m_storage(alloc)
     {
     }
 
     /// @brief Constructs empty container with move-constructed allocator.
     /// @param alloc Allocator to move.
-    explicit Vector(AllocatorType&& alloc)
+    explicit Vector(AllocatorType&& alloc) noexcept
         : m_storage(Forward<AllocatorType>(alloc))
     {
     }
-
-    ThisType& operator=(const ThisType& other) = delete;
 
     /// @brief Moves elements in another container into this.
     /// @param other Other container to move elements from.
