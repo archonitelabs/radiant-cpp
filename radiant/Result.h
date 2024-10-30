@@ -21,6 +21,8 @@
 #include <stdint.h>
 #if RAD_ENABLE_STD
 #include <initializer_list>
+// Placement new needs <new> clang-tidy errors without the header.
+#include <new> // NOLINT(misc-include-cleaner)
 #endif
 
 //
