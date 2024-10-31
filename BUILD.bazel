@@ -43,6 +43,13 @@ filegroup(
     ]),
 )
 
+filegroup(
+    name = "radiant-natvis",
+    srcs = [
+        "radiant/Rad.natvis",
+    ],
+)
+
 cc_library(
     name = "radiant",
     hdrs = [":radiant-hdrs"],

@@ -62,7 +62,7 @@ RAD_DEFAULT_COPTS = select({
 })
 
 RAD_DEFAULT_LINKOPTS = select({
-    "//:msvc": [],
+    "//:msvc": ["/NATVIS:radiant/Rad.natvis"],
     "//:gcc": RAD_GCC_LINKOPTS + RAD_ASAN_LINKOPTS,
     "//:clang": RAD_GCC_LINKOPTS,
 })
