@@ -26,8 +26,6 @@
 
 #include "radiant/Vector.h"
 
-#include <vector>
-
 struct VecTestStats
 {
     int DtorCount = 0;
@@ -1365,8 +1363,6 @@ TEST_F(TestVectorIntegral, ComparisonOperators)
     EXPECT_TRUE(right > left);
     EXPECT_FALSE(right <= left);
     EXPECT_TRUE(right >= left);
-
-    std::vector<int> v;
 }
 
 #endif // RAD_ENABLE_STD
