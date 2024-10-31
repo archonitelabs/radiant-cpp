@@ -78,5 +78,5 @@ jobs:
           repository-cache: true
           bazelisk-version: 1.x
       - name: Build and Run Unit Tests
-        run: bazel test -s --toolchain_resolution_debug=.* //...
+        run: C:\a\_tool\bazelisk\1.x\arm64\bazel.exe test -s --toolchain_resolution_debug=.* //...
         shell: cmd
