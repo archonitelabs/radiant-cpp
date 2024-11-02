@@ -18,17 +18,28 @@ limitations under the License.
 <!-- Debugger Visualizers -->
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
+  <!-- rad::Result -->
+  <Type Name="rad::Result&lt;*&gt;">
+    <DisplayString Condition="m_state == 0">empty</DisplayString>
+    <DisplayString Condition="m_state == 1">ok {m_ok.m_value}</DisplayString>
+    <DisplayString Condition="m_state == 2">error {m_err.m_value}</DisplayString>
+    <Expand>
+      <Item Condition="m_state == 1" Name="[ok]">m_ok.m_value</Item>
+      <Item Condition="m_state == 2" Name="[error]">m_err.m_value</Item>
+    </Expand>
+  </Type>
+
   <!-- rad::EmptyOptimizedPair -->
   <Type Name="rad::EmptyOptimizedPair&lt;*,*,1&gt;">
-    <DisplayString>{*($T1 *)this}</DisplayString>
+    <DisplayString>{*($T1*)this}</DisplayString>
     <Expand>
-        <ExpandedItem>*($T1 *)this</ExpandedItem>
+      <ExpandedItem>*($T1*)this</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="rad::EmptyOptimizedPair&lt;*,*,0&gt;">
     <DisplayString>{m_first}</DisplayString>
     <Expand>
-        <ExpandedItem>m_first</ExpandedItem>
+      <ExpandedItem>m_first</ExpandedItem>
     </Expand>
   </Type>
 
@@ -38,12 +49,162 @@ limitations under the License.
     <Intrinsic Name="capacity" Expression="m_storage.m_second.m_capacity" />
     <DisplayString>{{ size={size()} }}</DisplayString>
     <Expand>
-        <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
-        <Item Name="[allocator]" ExcludeView="simple">m_storage</Item>
-        <ArrayItems>
-          <Size>size()</Size>
-          <ValuePointer>m_storage.m_second.m_data</ValuePointer>
-        </ArrayItems>
+      <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
+      <Item Name="[allocator]" ExcludeView="simple">m_storage</Item>
+      <ArrayItems>
+        <Size>size()</Size>
+        <ValuePointer>m_storage.m_second.m_data</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <!-- rad::UniqueResource -->
+  <Type Name="rad::UniqueResource&lt;*&gt;">
+    <DisplayString Condition="m_value == InvalidValue">invalid</DisplayString>
+    <DisplayString Condition="m_value != InvalidValue">{m_value}</DisplayString>
+    <Expand>
+      <Item Name="[value]">m_value</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::Integer -->
+  <Type Name="rad::Integer&lt;*&gt;">
+    <DisplayString>{m_value}</DisplayString>
+    <Expand>
+      <Item Name="[value]">m_value</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::LockExclusive -->
+  <Type Name="rad::LockExclusive&lt;*&gt;">
+    <DisplayString>exclusive lock</DisplayString>
+    <Expand>
+      <Item Name="[lock]">m_lock</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::LockShared -->
+  <Type Name="rad::LockShared&lt;*&gt;">
+    <DisplayString>shared lock</DisplayString>
+    <Expand>
+      <Item Name="[lock]">m_lock</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::RelockableExclusive -->
+  <Type Name="rad::RelockableExclusive&lt;*&gt;">
+    <DisplayString Condition="m_acquired == 0">unlocked</DisplayString>
+    <DisplayString Condition="m_acquired == 1">locked exclusive</DisplayString>
+    <Expand>
+      <Item Name="[lock]">m_lock</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::RelockableShared -->
+  <Type Name="rad::RelockableShared&lt;*&gt;">
+    <DisplayString Condition="m_acquired == 0">unlocked</DisplayString>
+    <DisplayString Condition="m_acquired == 1">locked shared</DisplayString>
+    <Expand>
+      <Item Name="[lock]">m_lock</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::Atomic -->
+  <Type Name="rad::Atomic&lt;*&gt;">
+    <DisplayString>{m_val}</DisplayString>
+    <Expand>
+      <Item Name="[value]">m_val</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::detail::PtrBlock -->
+  <Type Name="rad::detail::PtrBlock&lt;*&gt;">
+    <Intrinsic Name="strong" Expression="m_refcount.m_strongCount.m_val" />
+    <Intrinsic Name="weak" Expression="m_refcount.m_weakCount.m_val" />
+    <DisplayString Condition="(strong() == 0)   &amp;&amp; (weak() == 1)"  >{weak()} weak ref</DisplayString>
+    <DisplayString Condition="(strong() == 0)   &amp;&amp; (weak() &gt; 1)">{weak()} weak refs</DisplayString>
+    <DisplayString Condition="(strong() == 1)   &amp;&amp; (weak() == 1)"  >{strong()} strong ref</DisplayString>
+    <DisplayString Condition="(strong() == 1)   &amp;&amp; (weak() == 2)"  >{strong()} strong ref, {weak() - 1} weak ref</DisplayString>
+    <DisplayString Condition="(strong() == 1)   &amp;&amp; (weak() &gt; 2)">{strong()} strong ref, {weak() - 1} weak refs</DisplayString>
+    <DisplayString Condition="(strong() &gt; 1) &amp;&amp; (weak() == 1)"  >{strong()} strong refs</DisplayString>
+    <DisplayString Condition="(strong() &gt; 1) &amp;&amp; (weak() == 2)"  >{strong()} strong refs, {weak() - 1} weak ref</DisplayString>
+    <DisplayString Condition="(strong() &gt; 1) &amp;&amp; (weak() &gt; 2)">{strong()} strong refs, {weak() - 1} weak refs</DisplayString>
+    <Expand>
+      <Item Condition="strong() != 0" Name="[original ptr]">($T1*)&amp;m_pair.m_second</Item>
+      <Item Name="[allocator]">m_pair</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::SharedPtr -->
+  <Type Name="rad::SharedPtr&lt;*&gt;">
+    <Intrinsic Name="strong" Expression="m_block-&gt;m_refcount.m_strongCount.m_val" />
+    <Intrinsic Name="weak" Expression="m_block-&gt;m_refcount.m_weakCount.m_val" />
+    <SmartPointer Usage="Minimal">m_ptr</SmartPointer>
+    <DisplayString Condition="m_block == 0">empty</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr == 0">nullptr</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr != 0">{*m_ptr}</DisplayString>
+    <DisplayString Condition="m_block != 0">{*this,view(ptr)} [{*m_block}]</DisplayString>
+    <Expand>
+      <Item Condition="m_block != 0" Name="[ptr]">m_ptr</Item>
+      <Item Condition="m_block != 0" Name="[control block]">*m_block</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::WeakPtr -->
+  <Type Name="rad::WeakPtr&lt;*&gt;">
+    <Intrinsic Name="strong" Expression="m_block-&gt;m_refcount.m_strongCount.m_val" />
+    <Intrinsic Name="weak" Expression="m_block-&gt;m_refcount.m_weakCount.m_val" />
+    <SmartPointer Usage="Minimal">m_ptr</SmartPointer>
+    <DisplayString Condition="m_block == 0">empty</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr == 0">nullptr</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr != 0">{*m_ptr}</DisplayString>
+    <DisplayString Condition="(m_block != 0) &amp;&amp; (strong() == 0)"  >expired [{*m_block}]</DisplayString>
+    <DisplayString Condition="(m_block != 0) &amp;&amp; (strong() &gt; 0)">{*this,view(ptr)} [{*m_block}]</DisplayString>
+    <Expand>
+      <Item Condition="(m_block != 0) &amp;&amp; (strong() &gt; 0)" Name="[ptr]">m_ptr</Item>
+      <Item Condition="m_block != 0" Name="[control block]">*m_block</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::detail::LockablePtr -->
+  <Type Name="rad::detail::LockablePtr&lt;*&gt;">
+    <SmartPointer Usage="Minimal">($T1*)(m_storage.m_val &amp; PtrMask)</SmartPointer>
+    <DisplayString Condition="(m_storage.m_val &amp; LockMask) == 0">{*($T1*)(m_storage.m_val &amp; PtrMask)}</DisplayString>
+    <DisplayString Condition="(m_storage.m_val &amp; ExclusiveFlag) != 0">{*($T1*)(m_storage.m_val &amp; PtrMask)}, locked exclusive</DisplayString>
+    <DisplayString Condition="(m_storage.m_val &amp; SharedMax) != 0">{*($T1*)(m_storage.m_val &amp; PtrMask)}, locked shared</DisplayString>
+    <Expand>
+      <Item Name="[ptr]">*($T1*)(m_storage.m_val &amp; PtrMask)</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::AtomicSharedPtr -->
+  <Type Name="rad::AtomicSharedPtr&lt;*&gt;">
+    <Intrinsic Name="strong" Expression="m_block-&gt;m_refcount.m_strongCount.m_val" />
+    <Intrinsic Name="weak" Expression="m_block-&gt;m_refcount.m_weakCount.m_val" />
+    <SmartPointer Usage="Minimal">($T1*)m_ptr.m_val</SmartPointer>
+    <DisplayString Condition="m_block.m_storage.m_val == 0">empty</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr.m_val == 0">nullptr</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr.m_val != 0">{*($T1*)m_ptr.m_val}</DisplayString>
+    <DisplayString Condition="m_block.m_storage.m_val != 0">{*this,view(ptr)} [{m_block}]</DisplayString>
+    <Expand>
+      <Item Condition="m_block.m_storage.m_val != 0" Name="[ptr]">($T1*)m_ptr.m_val</Item>
+      <Item Condition="m_block.m_storage.m_val != 0" Name="[control block]">m_block</Item>
+    </Expand>
+  </Type>
+
+  <!-- rad::AtomicWeakPtr -->
+  <Type Name="rad::AtomicWeakPtr&lt;*&gt;">
+    <Intrinsic Name="strong" Expression="m_block-&gt;m_refcount.m_strongCount.m_val" />
+    <Intrinsic Name="weak" Expression="m_block-&gt;m_refcount.m_weakCount.m_val" />
+    <SmartPointer Usage="Minimal">($T1*)m_ptr.m_val</SmartPointer>
+    <DisplayString Condition="m_block.m_storage.m_val == 0">empty</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr.m_val == 0">nullptr</DisplayString>
+    <DisplayString IncludeView="ptr" Condition="m_ptr.m_val != 0">{*($T1*)m_ptr.m_val}</DisplayString>
+    <DisplayString Condition="(m_block.m_storage.m_val != 0) &amp;&amp; (strong() == 0)"  >expired [{m_block}]</DisplayString>
+    <DisplayString Condition="(m_block.m_storage.m_val != 0) &amp;&amp; (strong() &gt; 0)">{*this,view(ptr)} [{m_block}]</DisplayString>
+    <Expand>
+      <Item Condition="(m_block.m_storage.m_val != 0) &amp;&amp; (strong() &gt; 0)" Name="[ptr]">($T1*)m_ptr.m_val</Item>
+      <Item Condition="m_block.m_storage.m_val != 0" Name="[control block]">m_block</Item>
     </Expand>
   </Type>
 
