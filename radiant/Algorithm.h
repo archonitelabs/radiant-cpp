@@ -15,6 +15,10 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
+// RAD_S_ASSERT_NOTHROW_MOVE_T uses TypeTraits.h
+#include "radiant/TypeTraits.h" // NOLINT(misc-include-cleaner)
+// rad::Move needs radiant/Utility.h
+#include "radiant/Utility.h" // NOLINT(misc-include-cleaner)
 
 namespace rad
 {

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
+#include "radiant/Algorithm.h"
 // rad::Forward needs radiant/Utility.h
 #include "radiant/Utility.h" // NOLINT(misc-include-cleaner)
 
@@ -82,13 +83,8 @@ public:
 
     void Swap(ListBasicNode& x) noexcept
     {
-        ListBasicNode* temp = m_next;
-        m_next = x.m_next;
-        x.m_next = temp;
-
-        temp = m_prev;
-        m_prev = x.m_prev;
-        x.m_prev = temp;
+        rad::Swap(m_next, x.m_next);
+        rad::Swap(m_prev, x.m_prev);
     }
 
     void AssertOnEmpty() const noexcept

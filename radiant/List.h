@@ -15,6 +15,8 @@
 #pragma once
 
 #include "radiant/TotallyRad.h"
+// rad::Swap needs radiant/Utility.h
+#include "radiant/Algorithm.h" // NOLINT(misc-include-cleaner)
 #include "radiant/EmptyOptimizedPair.h"
 #include "radiant/Iterator.h"
 #include "radiant/Memory.h"
@@ -44,8 +46,8 @@ namespace rad
     The set of constructors has been greatly reduced, due to error handling
     difficulties when exceptions aren't available.
 
-    The allocator returns nullptr on failure, rather than throws an exception.
-    That error is propogated.  Allocators are always propagated. "Fancy
+    The allocator returns nullptr on failure, rather than throwing an exception.
+    That error is propagated.  Allocators are always propagated. "Fancy
     pointers" aren't supported, as the allocators used aren't std allocators. So
     you won't be able to use some offset based pointer to do shared memory
     things with this container.
@@ -539,9 +541,7 @@ public:
     List& Swap(List& x) noexcept
     {
         {
-            TAllocator temp = ::rad::Move(m_storage.First());
-            m_storage.First() = ::rad::Move(x.m_storage.First());
-            x.m_storage.First() = ::rad::Move(temp);
+            rad::Swap(m_storage.First(), x.m_storage.First());
         }
         m_storage.Second().Swap(x.m_storage.Second());
         return *this;
