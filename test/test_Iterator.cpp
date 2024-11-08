@@ -44,7 +44,9 @@ TEST(IteratorTest, DefaultConstruct)
     EXPECT_EQ(it.operator->(), nullptr);
 
     RIt rit;
-    EXPECT_EQ(rit.operator->(), nullptr);
+    RAD_UNUSED(rit);
+    // UB
+    // EXPECT_EQ(rit.operator->(), nullptr);
 }
 
 TEST(InteratorTest, ValueConstruct)
@@ -52,7 +54,7 @@ TEST(InteratorTest, ValueConstruct)
     It it(g_data);
     EXPECT_EQ(it.operator->(), g_data);
 
-    RIt rit(g_data);
+    RIt rit(g_data + 1);
     EXPECT_EQ(rit.operator->(), g_data);
 }
 
@@ -72,7 +74,7 @@ TEST(InteratorTest, DereferenceOperator)
     It it(g_data);
     EXPECT_EQ(&it.operator*(), g_data);
 
-    RIt rit(g_data);
+    RIt rit(g_data + 1);
     EXPECT_EQ(&rit.operator*(), g_data);
 }
 
@@ -82,7 +84,7 @@ TEST(InteratorTest, SubscriptOperator)
     EXPECT_EQ(&it.operator[](0), g_data);
     EXPECT_EQ(&it.operator[](1), g_data + 1);
 
-    RIt rit(g_data + 1);
+    RIt rit(g_data + 2);
     EXPECT_EQ(&rit.operator[](0), g_data + 1);
     EXPECT_EQ(&rit.operator[](1), g_data);
 }
@@ -93,7 +95,7 @@ TEST(InteratorTest, Increment)
     it++;
     EXPECT_EQ(it.operator->(), g_data + 1);
 
-    RIt rit(g_data + 1);
+    RIt rit(g_data + 2);
     rit++;
     EXPECT_EQ(rit.operator->(), g_data);
 }
@@ -104,7 +106,7 @@ TEST(InteratorTest, PreIncrement)
     ++it;
     EXPECT_EQ(it.operator->(), g_data + 1);
 
-    RIt rit(g_data + 1);
+    RIt rit(g_data + 2);
     ++rit;
     EXPECT_EQ(rit.operator->(), g_data);
 }
@@ -115,7 +117,7 @@ TEST(InteratorTest, Decrement)
     it--;
     EXPECT_EQ(it.operator->(), g_data);
 
-    RIt rit(g_data);
+    RIt rit(g_data + 1);
     rit--;
     EXPECT_EQ(rit.operator->(), g_data + 1);
 }
@@ -126,7 +128,7 @@ TEST(InteratorTest, PreDecrement)
     --it;
     EXPECT_EQ(it.operator->(), g_data);
 
-    RIt rit(g_data);
+    RIt rit(g_data + 1);
     --rit;
     EXPECT_EQ(rit.operator->(), g_data + 1);
 }
@@ -137,7 +139,7 @@ TEST(InteratorTest, CompoundIncrement)
     it += 1;
     EXPECT_EQ(it.operator->(), g_data + 1);
 
-    RIt rit(g_data + 1);
+    RIt rit(g_data + 2);
     rit += 1;
     EXPECT_EQ(rit.operator->(), g_data);
 }
@@ -148,7 +150,7 @@ TEST(InteratorTest, CompoundDecrement)
     it -= 1;
     EXPECT_EQ(it.operator->(), g_data);
 
-    RIt rit(g_data);
+    RIt rit(g_data + 1);
     rit -= 1;
     EXPECT_EQ(rit.operator->(), g_data + 1);
 }
@@ -159,7 +161,7 @@ TEST(InteratorTest, AdditionOperator)
     it = it + 1;
     EXPECT_EQ(it.operator->(), g_data + 1);
 
-    RIt rit(g_data + 1);
+    RIt rit(g_data + 2);
     rit = rit + 1;
     EXPECT_EQ(rit.operator->(), g_data);
 }
@@ -170,7 +172,7 @@ TEST(InteratorTest, SubtractionOperator)
     it = it - 1;
     EXPECT_EQ(it.operator->(), g_data);
 
-    RIt rit(g_data);
+    RIt rit(g_data + 1);
     rit = rit - 1;
     EXPECT_EQ(rit.operator->(), g_data + 1);
 }

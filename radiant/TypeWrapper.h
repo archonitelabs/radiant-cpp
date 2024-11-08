@@ -34,6 +34,8 @@ class TypeWrapper<T, false>
 public:
 
     using Type = T;
+    using PointerType = T*;
+    using ValueType = Type;
 
     RAD_S_ASSERT_NOTHROW_MOVE_T(T);
 
@@ -157,13 +159,11 @@ private:
 template <typename T>
 class TypeWrapper<T, true>
 {
-private:
-
-    using PointerType = RemoveRef<T>*;
-
 public:
 
-    using Type = T;
+    using Type = RemoveRef<T>;
+    using PointerType = RemoveRef<T>*;
+    using ValueType = PointerType;
 
     constexpr TypeWrapper() = delete;
 

@@ -21,6 +21,8 @@
 #include <stdint.h>
 #if RAD_ENABLE_STD
 #include <initializer_list>
+// Placement new needs <new> clang-tidy errors without the header.
+#include <new> // NOLINT(misc-include-cleaner)
 #endif
 
 //
@@ -330,8 +332,8 @@ public:
     using typename StorageType::OkType;
     using typename StorageType::ErrType;
 
-    RAD_S_ASSERT_NOTHROW_MOVE_T(T);
-    RAD_S_ASSERT_NOTHROW_MOVE_T(E);
+    RAD_S_ASSERT_NOTHROW_MOVE_T(typename StorageType::OkWrap::ValueType);
+    RAD_S_ASSERT_NOTHROW_MOVE_T(typename StorageType::ErrWrap::ValueType);
 
     constexpr Result() noexcept
         : StorageType(ResultEmptyTag)

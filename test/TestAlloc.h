@@ -20,6 +20,7 @@ namespace radtest
 {
 
 static constexpr uint32_t k_BadState = 0xdeadc0de;
+static constexpr uint32_t k_MovedFromState = 0xc001d00d;
 
 template <typename T>
 class Allocator
@@ -108,11 +109,31 @@ public:
     }
 
     StatefulAllocator(const StatefulAllocator&) noexcept = default;
+    StatefulAllocator& operator=(const StatefulAllocator&) noexcept = default;
 
     template <typename U>
     StatefulAllocator(const StatefulAllocator<U>& other) noexcept
         : m_state(other.m_state)
     {
+    }
+
+    StatefulAllocator(StatefulAllocator&& other) noexcept
+        : m_state(other.m_state)
+    {
+        if (other.m_state != k_BadState)
+        {
+            other.m_state = k_MovedFromState;
+        }
+    }
+
+    StatefulAllocator& operator=(StatefulAllocator&& other) noexcept
+    {
+        m_state = other.m_state;
+        if (other.m_state != k_BadState)
+        {
+            other.m_state = k_MovedFromState;
+        }
+        return *this;
     }
 
     template <typename U>
@@ -591,6 +612,14 @@ struct HeapAllocator
             forceAllocFails--;
             return nullptr;
         }
+        if (forceFutureAllocFail > 0)
+        {
+            forceFutureAllocFail--;
+            if (forceFutureAllocFail == 0)
+            {
+                return nullptr;
+            }
+        }
 
         allocCount++;
         return malloc(count);
@@ -640,6 +669,7 @@ struct HeapAllocator
 
     int32_t freeCount{ 0 };
 
+    int32_t forceFutureAllocFail{ 0 };
     int32_t forceAllocFails{ 0 };
     int32_t allocCount{ 0 };
 

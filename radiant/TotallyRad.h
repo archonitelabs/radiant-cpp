@@ -198,6 +198,15 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 
 #endif
 
+#if RAD_WINDOWS
+extern "C" __declspec(noreturn) void __fastfail(unsigned int code);
+#define RAD_FAST_FAIL_ALWAYS() (__fastfail('idar'), false)
+#else // ^^^ RAD_WINDOWS / !RAD_WINDOWS vvv
+#define RAD_FAST_FAIL_ALWAYS() (__builtin_trap(), false)
+#endif // !RAD_WINDOWS ^^^
+
+#define RAD_FAST_FAIL(x) ((!!(x)) || (RAD_FAST_FAIL_ALWAYS()))
+
 #if RAD_DBG
 
 #if RAD_WINDOWS && RAD_KERNEL_MODE
@@ -206,8 +215,9 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 #define RAD_VERIFY(x)         NT_VERIFY(x)
 #define RAD_VERIFYMSG(x, msg) NT_VERIFYMSG(x)
 #else
-#define RAD_VERIFY(x)       ((!!(x)) || (rad::DoAssert(#x, __FILE__, __LINE__)))
-#define RAD_VERIFYMSG(x, m) ((!!(x)) || (rad::DoAssert(m, __FILE__, __LINE__)))
+#define RAD_VERIFY(x) ((!!(x)) || (::rad::DoAssert(#x, __FILE__, __LINE__)))
+#define RAD_VERIFYMSG(x, m)                                                    \
+    ((!!(x)) || (::rad::DoAssert(m, __FILE__, __LINE__)))
 #define RAD_ASSERT(x)       (void)RAD_VERIFY(x)
 #define RAD_ASSERTMSG(x, m) (void)RAD_VERIFY(x, m)
 #endif
@@ -259,9 +269,10 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 #define RAD_S_ASSERT_NOTHROW_DTOR(x)                                           \
     RAD_S_ASSERTMSG(x, "destructors should not throw")
 #define RAD_S_ASSERT_NOTHROW_DTOR_T(x)                                         \
-    RAD_S_ASSERTMSG(IsNoThrowDtor<x>, "destructors should not throw")
+    RAD_S_ASSERT_NOTHROW_DTOR(::rad::IsNoThrowDtor<x>)
 #else
-#define RAD_S_ASSERT_NOTHROW_DTOR(x) RAD_S_ASSERT(true)
+#define RAD_S_ASSERT_NOTHROW_DTOR(x)   RAD_S_ASSERT(true)
+#define RAD_S_ASSERT_NOTHROW_DTOR_T(x) RAD_S_ASSERT(true)
 #endif
 
 //
@@ -278,8 +289,8 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 #define RAD_S_ASSERT_NOTHROW_MOVE(x)                                           \
     RAD_S_ASSERTMSG(x, "move operations should not throw")
 #define RAD_S_ASSERT_NOTHROW_MOVE_T(x)                                         \
-    RAD_S_ASSERTMSG(IsNoThrowMoveCtor<x>&& IsNoThrowMoveAssign<x>,             \
-                    "move operations should not throw")
+    RAD_S_ASSERT_NOTHROW_MOVE(                                                 \
+        ::rad::IsNoThrowMoveCtor<x>&& ::rad::IsNoThrowMoveAssign<x>)
 #else
 #define RAD_S_ASSERT_NOTHROW_MOVE(x)   RAD_S_ASSERT(true)
 #define RAD_S_ASSERT_NOTHROW_MOVE_T(x) RAD_S_ASSERT(true)
@@ -298,7 +309,7 @@ inline bool DoAssert(const char* Assertion, const char* File, int Line)
 #define RAD_S_ASSERT_ALLOCATOR_REQUIRES(x)                                     \
     RAD_S_ASSERTMSG(x, "allocator requirements not met")
 #define RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(x)                                   \
-    RAD_S_ASSERTMSG(AllocatorRequires<x>, "allocator requirements not met")
+    RAD_S_ASSERT_ALLOCATOR_REQUIRES(::rad::AllocatorRequires<x>)
 #else
 #define RAD_S_ASSERT_ALLOCATOR_REQUIRES(x)   RAD_S_ASSERT(true)
 #define RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(x) RAD_S_ASSERT(true)

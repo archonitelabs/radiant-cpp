@@ -345,27 +345,12 @@ public:
 
     constexpr ReverseIteratorType rbegin() const noexcept
     {
-        if (Empty())
-        {
-            return ReverseIteratorType(nullptr);
-        }
-        return ReverseIteratorType(Data() + (Size() - 1));
+        return ReverseIteratorType(Data() + Size());
     }
 
     constexpr ReverseIteratorType rend() const noexcept
     {
-        if (Empty())
-        {
-            return ReverseIteratorType(nullptr);
-        }
-#if !RAD_DBG && defined(RAD_GCC_VERSION)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
-        return ReverseIteratorType(Data() - 1);
-#if !RAD_DBG && defined(RAD_GCC_VERSION)
-#pragma GCC diagnostic pop
-#endif
+        return ReverseIteratorType(Data());
     }
 
 private:
