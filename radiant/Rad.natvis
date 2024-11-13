@@ -210,7 +210,8 @@ limitations under the License.
 
   <!-- rad::List -->
   <Type Name="rad::List&lt;*&gt;">
-    <DisplayString Condition="m_storage.m_second.m_head.m_next == &amp;m_storage.m_second.m_head">(empty)</DisplayString>
+    <DisplayString Condition="m_storage.m_second.m_head.m_next == &amp;m_storage.m_second.m_head">empty</DisplayString>
+    <DisplayString Condition="m_storage.m_second.m_head.m_next != &amp;m_storage.m_second.m_head">non-empty</DisplayString>
     <Expand>
       <Item Name="[allocator]" ExcludeView="simple">m_storage</Item>
       <CustomListItems MaxItemsPerView="5000" ExcludeView="Test">
