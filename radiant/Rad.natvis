@@ -208,4 +208,22 @@ limitations under the License.
     </Expand>
   </Type>
 
+  <!-- rad::List -->
+  <Type Name="rad::List&lt;*&gt;">
+    <DisplayString Condition="m_storage.m_second.m_head.m_next == &amp;m_storage.m_second.m_head">empty</DisplayString>
+    <DisplayString Condition="m_storage.m_second.m_head.m_next != &amp;m_storage.m_second.m_head">non-empty</DisplayString>
+    <Expand>
+      <Item Name="[allocator]" ExcludeView="simple">m_storage</Item>
+      <CustomListItems MaxItemsPerView="5000" ExcludeView="Test">
+        <Variable Name="Head" InitialValue="&amp;m_storage.m_second.m_head" />
+        <Variable Name="Cur" InitialValue="m_storage.m_second.m_head.m_next" />
+        <Loop>
+          <Break Condition="Cur == Head" />
+          <Item>(*(rad::detail::ListNode&lt;$T1&gt;*)Cur).m_elt</Item>
+          <Exec>Cur = Cur-&gt;m_next</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
 </AutoVisualizer>
