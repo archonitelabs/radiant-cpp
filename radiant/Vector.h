@@ -43,6 +43,7 @@ private:
 
     using OperationalType = detail::VectorOperations<T, TInlineCount>;
     using StorageType = EmptyOptimizedPair<TAllocator, OperationalType>;
+    using AllocatorTraits = AllocTraits<TAllocator>;
 
 public:
 
@@ -55,7 +56,6 @@ public:
     using OtherType = Vector<T, OtherTAllocator, OtherTInlineCount>;
 
     RAD_S_ASSERT_NOTHROW_MOVE_T(T);
-    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAllocator);
 
     RAD_NOT_COPYABLE(Vector);
 
@@ -78,11 +78,12 @@ public:
     {
     }
 
-    /// @brief Constructs empty container with move-constructed allocator.
-    /// @param alloc Allocator to move.
-    explicit Vector(AllocatorType&& alloc) noexcept
-        : m_storage(Forward<AllocatorType>(alloc))
+    /// @brief Move constructs container from another.
+    /// @param other Container to steal from.
+    explicit Vector(ThisType&& other) noexcept
+        : m_storage(other.Allocator())
     {
+        other.Storage().Move(Allocator(), Storage());
     }
 
     /// @brief Moves elements in another container into this.
@@ -90,7 +91,21 @@ public:
     /// @return Reference to this container.
     ThisType& operator=(ThisType&& other) noexcept
     {
-        other.Storage().Move(other.Allocator(), Storage());
+        // Don't allow non-propagation of allocators
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual ||
+                AllocatorTraits::PropagateOnMoveAssignment,
+            "Cannot use move assignment with this allocator, as it could cause "
+            "copies. Either change allocators, or use something like Copy().");
+
+        if RAD_UNLIKELY (this == &other)
+        {
+            return *this;
+        }
+
+        other.Storage().Move(Allocator(), Storage());
+        AllocatorTraits::PropagateOnMoveIfNeeded(Allocator(),
+                                                 other.Allocator());
         return *this;
     }
 
@@ -238,7 +253,15 @@ public:
     /// @return Reference to this container.
     ThisType& Swap(ThisType& other) noexcept
     {
+        // Don't allow non-propagation of allocators
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual || AllocatorTraits::PropagateOnSwap,
+            "Cannot use Swap with this allocator, as it could cause copies. "
+            "Either change allocators, or use move construction.");
+
         Storage().Swap(other.Storage());
+        AllocatorTraits::PropagateOnSwapIfNeeded(Allocator(),
+                                                 other.Allocator());
         return *this;
     }
 
@@ -367,6 +390,14 @@ public:
         return Span<ValueType>();
     }
 
+    /// @brief Create a copy of the current Vector
+    /// @return The new container on success or an error.
+    Res<ThisType> Clone()
+    {
+        ThisType local(AllocatorTraits::SelectAllocOnCopy(Allocator()));
+        return local.Assign(ToSpan()).OnOk(::rad::Move(local));
+    }
+
     /// @brief Copies the elements in this container to another.
     /// @param to Container to copy elements to.
     /// @return Result reference to this container on success or an error.
@@ -376,7 +407,15 @@ public:
         // the storage and allocator are private when the from and to vectors
         // are not exactly the same type. This problem can be solved, but
         // requires a bit of work.
-        return Storage().Copy(to.Allocator(), to.Storage()).OnOk(*this);
+        auto res = Storage()
+                       .Copy(Allocator(), to.Storage(), to.Allocator())
+                       .OnOk(*this);
+        if (res.IsOk())
+        {
+            AllocatorTraits::PropagateOnCopyIfNeeded(to.Allocator(),
+                                                     Allocator());
+        }
+        return res;
     }
 
     /// @brief Moves the elements in this container to another.
@@ -384,7 +423,15 @@ public:
     /// @return Result reference to this container on success or an error.
     ThisType& Move(ThisType& to) noexcept
     {
-        Storage().Move(Allocator(), to.Storage());
+        // Don't allow non-propagation of allocators
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual ||
+                AllocatorTraits::PropagateOnMoveAssignment,
+            "Cannot use move assignment with this allocator, as it could cause "
+            "copies. Either change allocators, or use something like Copy().");
+
+        Storage().Move(to.Allocator(), to.Storage());
+        AllocatorTraits::PropagateOnMoveIfNeeded(to.Allocator(), Allocator());
         return *this;
     }
 

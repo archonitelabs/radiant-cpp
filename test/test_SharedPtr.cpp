@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#define RAD_DEFAULT_ALLOCATOR radtest::Allocator
+#define RAD_DEFAULT_ALLOCATOR radtest::Mallocator
 
 #include "gtest/gtest.h"
 #include "test/TestAlloc.h"
@@ -24,8 +24,8 @@ namespace sptestobjs
 {
 // clang-format off
 using NoThrowAllocSp = rad::SharedPtr<int>;
-using NoThrowObjBlock = rad::detail::PtrBlock<int, radtest::Allocator<int>>;
-using ThrowObjBlock = rad::detail::PtrBlock<radtest::ThrowingObject, radtest::Allocator<radtest::ThrowingObject>>;
+using NoThrowObjBlock = rad::detail::PtrBlock<int, radtest::Mallocator>;
+using ThrowObjBlock = rad::detail::PtrBlock<radtest::ThrowingObject, radtest::Mallocator>;
 using NoThrowPair = NoThrowObjBlock::PairType;
 using ThrowPair = ThrowObjBlock::PairType;
 
@@ -41,15 +41,15 @@ RAD_S_ASSERT(!noexcept(ThrowPair(rad::DeclVal<ThrowPair::FirstType&>())));
 RAD_S_ASSERT(noexcept(NoThrowObjBlock(NoThrowObjBlock::AllocatorType())));
 RAD_S_ASSERT(!noexcept(ThrowObjBlock(ThrowObjBlock::AllocatorType())));
 
-// allocate shared non-throwing allocator required
-RAD_S_ASSERT(noexcept(rad::AllocateShared<int>(radtest::Allocator<int>(), 0)));
+// allocate shared noexcept
+RAD_S_ASSERT(!noexcept(rad::AllocateShared<int>(radtest::Mallocator(), 0)));
 
 // allocate shared throwing constructor
-RAD_S_ASSERT(!noexcept(rad::AllocateShared<radtest::ThrowingObject>(
-    radtest::Allocator<radtest::ThrowingObject>())));
+RAD_S_ASSERT(!noexcept(
+    rad::AllocateShared<radtest::ThrowingObject>(radtest::Mallocator())));
 
 // make shared noexcept
-RAD_S_ASSERT(noexcept(rad::MakeShared<int>(0)));
+RAD_S_ASSERT(!noexcept(rad::MakeShared<int>(0)));
 RAD_S_ASSERT(!noexcept(rad::MakeShared<radtest::ThrowingObject>()));
 
 class Base
@@ -97,14 +97,13 @@ namespace
 sptestobjs::NoThrowObjBlock* AllocTestBlock(int val)
 {
     typename sptestobjs::NoThrowObjBlock::AllocatorType alloc;
-    auto block = alloc.Alloc(1);
-    new (block) sptestobjs::NoThrowObjBlock(alloc, val);
-    return block;
+    auto block = alloc.AllocBytes(sizeof(sptestobjs::NoThrowObjBlock));
+    return new (block) sptestobjs::NoThrowObjBlock(alloc, val);
 }
 
 void FreeTestBlock(sptestobjs::NoThrowObjBlock* block)
 {
-    block->Allocator().Free(block);
+    block->Allocator().FreeBytes(block, sizeof(sptestobjs::NoThrowObjBlock));
 }
 } // namespace
 
@@ -201,13 +200,13 @@ TEST(TestSharedPtr, RefCountLockWeakFailExchange)
 
 TEST(TestSharedPtr, PtrBlockCtor)
 {
-    using PtrBlock = rad::detail::PtrBlock<int, radtest::Allocator<int>>;
+    using PtrBlock = rad::detail::PtrBlock<int, radtest::Mallocator>;
     PtrBlock::AllocatorType alloc;
     PtrBlock block(alloc, 2);
     EXPECT_EQ(block.Value(), 2);
 
     using StatefulPtrBlock =
-        rad::detail::PtrBlock<int, radtest::StatefulAllocator<int>>;
+        rad::detail::PtrBlock<int, radtest::StatefulAllocator>;
     StatefulPtrBlock::AllocatorType statefulAlloc;
     StatefulPtrBlock statefulBlock(statefulAlloc, 4);
     RAD_S_ASSERT(sizeof(statefulBlock) >
@@ -252,8 +251,8 @@ TEST(TestSharedPtr, LockWeak)
 
 TEST(TestSharedPtr, ReleaseDestruct)
 {
-    using PtrBlock = rad::detail::PtrBlock<DestructCounter,
-                                           radtest::Allocator<DestructCounter>>;
+    using PtrBlock =
+        rad::detail::PtrBlock<DestructCounter, radtest::Mallocator>;
     PtrBlock::AllocatorType alloc;
     PtrBlock block(alloc);
     EXPECT_EQ(DestructCounter::counter, 0);
@@ -267,16 +266,16 @@ TEST(TestSharedPtr, ReleaseDestruct)
 TEST(TestSharedPtr, ReleaseFree)
 {
     using PtrBlock =
-        rad::detail::PtrBlock<int, radtest::StatefulCountingAllocator<int>>;
+        rad::detail::PtrBlock<int, radtest::StatefulCountingAllocator>;
     PtrBlock::AllocatorType alloc;
     alloc.ResetCounts();
 
-    PtrBlock* block = alloc.Alloc(1);
-    new (block) PtrBlock(alloc);
+    void* mem = alloc.AllocBytes(sizeof(PtrBlock));
+    PtrBlock* block = new (mem) PtrBlock(alloc);
 
     block->Release();
     EXPECT_EQ(alloc.AllocCount(), 1u);
-    EXPECT_TRUE(alloc.VerifyCounts());
+    alloc.VerifyCounts();
 }
 
 TEST(TestSharedPtr, Value)
@@ -303,7 +302,7 @@ TEST(TestSharedPtr, NullCtor)
 
 TEST(TestSharedPtr, AllocateShared)
 {
-    radtest::Allocator<int> alloc;
+    radtest::Mallocator alloc;
     auto ptr = rad::AllocateShared<int>(alloc, 2);
     EXPECT_TRUE(ptr);
     EXPECT_EQ(*ptr, 2);
@@ -311,20 +310,20 @@ TEST(TestSharedPtr, AllocateShared)
 
 TEST(TestSharedPtr, AllocateSharedFail)
 {
-    radtest::FailingAllocator<int> alloc;
+    radtest::FailingAllocator alloc;
     auto ptr = rad::AllocateShared<int>(alloc, 2);
     EXPECT_FALSE(ptr);
 }
 
 TEST(TestSharedPtr, AllocateSharedThrows)
 {
-    radtest::StatefulCountingAllocator<radtest::ThrowingObject> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     EXPECT_THROW(rad::AllocateShared<radtest::ThrowingObject>(alloc, 1),
                  std::exception);
     EXPECT_EQ(alloc.AllocCount(), 1u);
-    EXPECT_TRUE(alloc.VerifyCounts());
+    alloc.VerifyCounts();
 }
 
 TEST(TestSharedPtr, MakeShared)
@@ -486,7 +485,7 @@ TEST(TestSharedPtr, Swap)
 
 TEST(TestSharedPtr, SelfCopyAssign)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -500,7 +499,7 @@ TEST(TestSharedPtr, SelfCopyAssign)
 
 TEST(TestSharedPtr, CopyAssignNoReset)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -516,7 +515,7 @@ TEST(TestSharedPtr, CopyAssignNoReset)
 
 TEST(TestSharedPtr, CopyAssignReset)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -527,12 +526,12 @@ TEST(TestSharedPtr, CopyAssignReset)
     EXPECT_EQ(*ptr2, 2);
     EXPECT_EQ(*ptr2, *ptr);
 
-    EXPECT_TRUE(alloc.VerifyCounts(2, 1));
+    alloc.VerifyCounts(2, 1);
 }
 
 TEST(TestSharedPtr, CopyAssignNull)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -544,7 +543,7 @@ TEST(TestSharedPtr, CopyAssignNull)
 
 TEST(TestSharedPtr, SelfMoveAssign)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -553,12 +552,12 @@ TEST(TestSharedPtr, SelfMoveAssign)
     EXPECT_TRUE(ptr);
     EXPECT_EQ(ptr.UseCount(), 1u);
 
-    EXPECT_TRUE(alloc.VerifyCounts(1, 0));
+    alloc.VerifyCounts(1, 0);
 }
 
 TEST(TestSharedPtr, MoveAssignNoReset)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -570,12 +569,12 @@ TEST(TestSharedPtr, MoveAssignNoReset)
     EXPECT_EQ(ptr2.UseCount(), 1u);
     EXPECT_EQ(ptr2.WeakCount(), 1u);
 
-    EXPECT_TRUE(alloc.VerifyCounts(1, 0));
+    alloc.VerifyCounts(1, 0);
 }
 
 TEST(TestSharedPtr, MoveAssignReset)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -588,7 +587,7 @@ TEST(TestSharedPtr, MoveAssignReset)
     EXPECT_EQ(ptr2.UseCount(), 1u);
     EXPECT_EQ(ptr2.WeakCount(), 1u);
 
-    EXPECT_TRUE(alloc.VerifyCounts(2, 1));
+    alloc.VerifyCounts(2, 1);
 }
 
 TEST(TestSharedPtr, PolymorphicCtor)
@@ -599,7 +598,7 @@ TEST(TestSharedPtr, PolymorphicCtor)
     EXPECT_EQ(static_cast<void*>(&d), static_cast<void*>(b));
     EXPECT_NE(static_cast<void*>(b), static_cast<void*>(e));
 
-    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     {
@@ -616,12 +615,12 @@ TEST(TestSharedPtr, PolymorphicCtor)
     }
 
     EXPECT_EQ(alloc.AllocCount(), 1u);
-    EXPECT_TRUE(alloc.VerifyCounts());
+    alloc.VerifyCounts();
 }
 
 TEST(TestSharedPtr, PolymorphicAssign)
 {
-    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     {
@@ -643,12 +642,12 @@ TEST(TestSharedPtr, PolymorphicAssign)
     }
 
     EXPECT_EQ(alloc.AllocCount(), 1u);
-    EXPECT_TRUE(alloc.VerifyCounts());
+    alloc.VerifyCounts();
 }
 
 TEST(TestSharedPtr, StatefulAllocator)
 {
-    radtest::StatefulCountingAllocator<int> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     auto ptr = rad::AllocateShared<int>(alloc, 2);
@@ -660,6 +659,17 @@ TEST(TestSharedPtr, StatefulAllocator)
     ptr.Reset();
     EXPECT_EQ(alloc.AllocCount(), 1u);
     EXPECT_EQ(alloc.FreeCount(), 1u);
+}
+
+TEST(TestSharedPtr, UsesTypedAlloc)
+{
+    radtest::TypedAllocator alloc;
+
+    auto ptr = rad::AllocateShared<int>(alloc, 2);
+    EXPECT_TRUE(ptr);
+    EXPECT_EQ(*ptr, 2);
+
+    ptr.Reset();
 }
 
 TEST(TestWeakPtr, ConstructEmpy)
@@ -837,7 +847,7 @@ TEST(TestWeakPtr, PolymorphicCtor)
     EXPECT_EQ(static_cast<void*>(&d), static_cast<void*>(b));
     EXPECT_NE(static_cast<void*>(b), static_cast<void*>(e));
 
-    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     {
@@ -870,12 +880,12 @@ TEST(TestWeakPtr, PolymorphicCtor)
     }
 
     EXPECT_EQ(alloc.AllocCount(), 1u);
-    EXPECT_TRUE(alloc.VerifyCounts());
+    alloc.VerifyCounts();
 }
 
 TEST(TestWeakPtr, PolymorphicAssign)
 {
-    radtest::StatefulCountingAllocator<sptestobjs::Derived> alloc;
+    radtest::StatefulCountingAllocator alloc;
     alloc.ResetCounts();
 
     {
@@ -920,7 +930,7 @@ TEST(TestWeakPtr, PolymorphicAssign)
     }
 
     EXPECT_EQ(alloc.AllocCount(), 1u);
-    EXPECT_TRUE(alloc.VerifyCounts());
+    alloc.VerifyCounts();
 }
 
 TEST(TestAtomicSharedPtr, Construct)

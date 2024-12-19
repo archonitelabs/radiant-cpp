@@ -129,7 +129,7 @@ struct EnIfUnrelated<T, U, Rest...> : enable_if<!IsRelated<T, U>>
 template <typename T, T TValue>
 using IntegralConstant = integral_constant<T, TValue>;
 using TrueType = IntegralConstant<bool, true>;
-using FalseType = IntegralConstant<bool, true>;
+using FalseType = IntegralConstant<bool, false>;
 
 template <typename T>
 RAD_INLINE_VAR constexpr bool IsIntegral = is_integral<T>::value;

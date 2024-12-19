@@ -104,14 +104,7 @@ public:
     using ReverseIteratorType = ReverseIterator<IteratorType>;
     using ConstReverseIteratorType = ReverseIterator<ConstIteratorType>;
 
-    using Rebound =
-        typename TAllocator::template Rebind<::rad::detail::ListNode<T>>::Other;
-
-    // Not asserting noexcept movability on T, as we mostly don't need to move
-    // types once they are constructed.  We support immovable types like
-    // mutexes.  The Take* functions assert on noexcept movability since they
-    // do move contained elements.
-    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAllocator);
+    using AllocatorTraits = AllocTraits<TAllocator>;
 
     ~List()
     {
@@ -122,15 +115,29 @@ public:
     RAD_NOT_COPYABLE(List);
 
     List(List&& x) noexcept
-        : m_storage(::rad::Move(x.m_storage.First()))
+        : m_storage(x.m_storage.First())
     {
         m_storage.Second().Swap(x.m_storage.Second());
     }
 
     List& operator=(List&& x) noexcept
     {
+        // Don't allow non-propagation of allocators
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual ||
+                AllocatorTraits::PropagateOnMoveAssignment,
+            "Cannot use move assignment with this allocator, as it could cause "
+            "copies. Either change allocators, or use something like Clone().");
+
+        if RAD_UNLIKELY (this == &x)
+        {
+            return *this;
+        }
+
         Clear();
-        Swap(x);
+        AllocatorTraits::PropagateOnMoveIfNeeded(m_storage.First(),
+                                                 x.m_storage.First());
+        m_storage.Second().Swap(x.m_storage.Second());
         return *this;
     }
 
@@ -141,7 +148,7 @@ public:
 
     Res<List> Clone()
     {
-        List local(m_storage.First());
+        List local(AllocatorTraits::SelectAllocOnCopy(m_storage.First()));
         return local.AssignSomeImpl(this->begin(), this->end())
             .OnOk(::rad::Move(local));
     }
@@ -468,8 +475,8 @@ public:
 
         ::rad::detail::ListNode<T>* typed =
             static_cast<::rad::detail::ListNode<T>*>(cur);
-        typed->~ListNode();
-        ReboundAlloc().Free(typed);
+        AllocatorTraits::Destroy(m_storage.First(), typed);
+        AllocatorTraits::Free(m_storage.First(), typed, 1);
 
         return IteratorType(retnode);
     }
@@ -493,8 +500,8 @@ public:
                 static_cast<::rad::detail::ListNode<T>*>(cur);
             cur = cur->m_next;
 
-            typed->~ListNode();
-            ReboundAlloc().Free(typed);
+            AllocatorTraits::Destroy(m_storage.First(), typed);
+            AllocatorTraits::Free(m_storage.First(), typed, 1);
         }
         return IteratorType(end);
     }
@@ -540,66 +547,143 @@ public:
 
     List& Swap(List& x) noexcept
     {
-        {
-            rad::Swap(m_storage.First(), x.m_storage.First());
-        }
+        // Don't allow non-propagation of allocators
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual || AllocatorTraits::PropagateOnSwap,
+            "Cannot use Swap with this allocator, as it could cause copies. "
+            "Either change allocators, or use move construction.");
+
+        AllocatorTraits::PropagateOnSwapIfNeeded(m_storage.First(),
+                                                 x.m_storage.First());
         m_storage.Second().Swap(x.m_storage.Second());
         return *this;
     }
 
     // The list parameter to the splice functions is mostly unused.  It's
     // important to keep it though as a way to attest that you have mutable
-    // access to the source list.  If we want to support unequal allocators,
-    // then we'll need access to the source list.  We'll also need to add an
-    // error channel if we support unequal allocators.
+    // access to the source list.
+    // Self-splicing is erroneous behavior, with a fallback behavior of no-op.
     List& SpliceAll(ConstIteratorType position, List& x)
     {
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual,
+            "Cannot use SpliceAll with potentially unequal allocators. "
+            "Either change allocators, or use Insert().");
+
+        if (&x == this)
+        {
+            RAD_ASSERT(false); // "You cannot splice a list into itself."
+            return *this;
+        }
+
         m_storage.Second().SpliceSome(position.m_node,
                                       x.begin().m_node,
                                       x.end().m_node);
         return *this;
     }
 
+    // Self-splicing is erroneous behavior, with a fallback behavior of no-op.
     List& SpliceAll(ConstIteratorType position, List&& x)
     {
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual,
+            "Cannot use SpliceAll with potentially unequal allocators. "
+            "Either change allocators, or use Insert().");
+
+        if (&x == this)
+        {
+            RAD_ASSERT(false); // "You cannot splice a list into itself."
+            return *this;
+        }
+
         m_storage.Second().SpliceSome(position.m_node,
                                       x.begin().m_node,
                                       x.end().m_node);
         return *this;
     }
 
+    // If `i` doesn't point inside `x`, the behavior is undefined.
+    // Self-splicing is erroneous behavior, with a fallback behavior of no-op.
     List& SpliceOne(ConstIteratorType position, List& x, ConstIteratorType i)
     {
-        RAD_UNUSED(x);
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual,
+            "Cannot use SpliceOne with potentially unequal allocators. "
+            "Either change allocators, or use Insert().");
+
+        if (&x == this)
+        {
+            RAD_ASSERT(false); // "You cannot splice a list into itself."
+            return *this;
+        }
+
         m_storage.Second().SpliceOne(position.m_node, i.m_node);
         return *this;
     }
 
+    // If `i` doesn't point inside `x`, the behavior is undefined.
+    // Self-splicing is erroneous behavior, with a fallback behavior of no-op.
     List& SpliceOne(ConstIteratorType position, List&& x, ConstIteratorType i)
     {
-        RAD_UNUSED(x);
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual,
+            "Cannot use SpliceOne with potentially unequal allocators. "
+            "Either change allocators, or use Insert().");
+
+        if (&x == this)
+        {
+            RAD_ASSERT(false); // "You cannot splice a list into itself."
+            return *this;
+        }
+
         m_storage.Second().SpliceOne(position.m_node, i.m_node);
         return *this;
     }
 
+    // If (`first`, `last`] isn't a valid range inside `x`, the behavior is
+    // undefined. Self-splicing is erroneous behavior, with a fallback behavior
+    // of no-op.
     List& SpliceSome(ConstIteratorType position,
                      List& x,
                      ConstIteratorType first,
                      ConstIteratorType last)
     {
-        RAD_UNUSED(x);
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual,
+            "Cannot use SpliceSome with potentially unequal allocators. "
+            "Either change allocators, or use Insert().");
+
+        if (&x == this)
+        {
+            RAD_ASSERT(false); // "You cannot splice a list into itself."
+            return *this;
+        }
+
         m_storage.Second().SpliceSome(position.m_node,
                                       first.m_node,
                                       last.m_node);
         return *this;
     }
 
+    // If (`first`, `last`] isn't a valid range inside `x`, the behavior is
+    // undefined. Self-splicing is erroneous behavior, with a fallback behavior
+    // of no-op.
     List& SpliceSome(ConstIteratorType position,
                      List&& x,
                      ConstIteratorType first,
                      ConstIteratorType last)
     {
-        RAD_UNUSED(x);
+        RAD_S_ASSERTMSG(
+            AllocatorTraits::IsAlwaysEqual,
+            "Cannot use SpliceSome with potentially unequal allocators. "
+            "Either change allocators, or use Insert().");
+
+        if (&x == this)
+        {
+            RAD_ASSERT(false); // "You cannot splice a list into itself."
+            return *this;
+        }
+
         m_storage.Second().SpliceSome(position.m_node,
                                       first.m_node,
                                       last.m_node);
@@ -636,14 +720,19 @@ private:
     RAD_NODISCARD ::rad::detail::ListNode<T>* EmplacePtr(
         ConstIteratorType position, Args&&... args)
     {
-        ::rad::detail::ListNode<T>* storage = ReboundAlloc().Alloc(1);
+        ::rad::detail::ListNode<T>* storage =
+            AllocatorTraits::template Alloc<::rad::detail::ListNode<T>>(
+                m_storage.First(),
+                1);
         if (storage == nullptr)
         {
             return nullptr;
         }
         // forward to placement new
         ::rad::detail::ListNode<T>* new_node =
-            new (storage)::rad::detail::ListNode<T>(Forward<Args>(args)...);
+            AllocatorTraits::Construct(m_storage.First(),
+                                       storage,
+                                       Forward<Args>(args)...);
 
         // insert the new node before passed in position
         m_storage.Second().AttachNewNode(position.m_node, new_node);
@@ -688,11 +777,6 @@ private:
         // using m_list Swap so that we don't need to swap allocators
         m_storage.Second().Swap(local.m_storage.Second());
         return *this;
-    }
-
-    Rebound ReboundAlloc()
-    {
-        return m_storage.First();
     }
 
     EmptyOptimizedPair<TAllocator, ::rad::detail::ListUntyped> m_storage;

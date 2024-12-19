@@ -19,98 +19,16 @@
 namespace radtest
 {
 
-uint32_t CountingAllocatorImpl::g_FreeCount = 0;
-uint32_t CountingAllocatorImpl::g_AllocCount = 0;
-uint32_t CountingAllocatorImpl::g_ReallocCount = 0;
-uint32_t CountingAllocatorImpl::g_FreeBytesCount = 0;
-uint32_t CountingAllocatorImpl::g_AllocBytesCount = 0;
-uint32_t CountingAllocatorImpl::g_ReallocBytesCount = 0;
+const uint32_t StatefulAllocator::k_BadState;
+const uint32_t StatefulCountingAllocator::k_BadState;
 
-void CountingAllocatorImpl::Free(void* ptr) noexcept
-{
-    ++g_FreeCount;
-    free(ptr);
-}
-
-void* CountingAllocatorImpl::Alloc(uint32_t size) noexcept
-{
-    ++g_AllocCount;
-    return malloc(size);
-}
-
-void* CountingAllocatorImpl::Realloc(void* ptr, uint32_t size) noexcept
-{
-    ++g_ReallocCount;
-    return realloc(ptr, size);
-}
-
-void CountingAllocatorImpl::FreeBytes(void* ptr) noexcept
-{
-    ++g_FreeBytesCount;
-    free(ptr);
-}
-
-void* CountingAllocatorImpl::AllocBytes(uint32_t size) noexcept
-{
-    ++g_AllocBytesCount;
-    return malloc(size);
-}
-
-void* CountingAllocatorImpl::ReallocBytes(void* ptr, uint32_t size) noexcept
-{
-    ++g_ReallocBytesCount;
-    return realloc(ptr, size);
-}
-
-uint32_t CountingAllocatorImpl::FreeCount() noexcept
-{
-    return g_FreeCount;
-}
-
-uint32_t CountingAllocatorImpl::AllocCount() noexcept
-{
-    return g_AllocCount;
-}
-
-uint32_t CountingAllocatorImpl::ReallocCount() noexcept
-{
-    return g_ReallocCount;
-}
-
-uint32_t CountingAllocatorImpl::FreeBytesCount() noexcept
-{
-    return g_FreeBytesCount;
-}
-
-uint32_t CountingAllocatorImpl::AllocBytesCount() noexcept
-{
-    return g_AllocBytesCount;
-}
-
-uint32_t CountingAllocatorImpl::ReallocBytesCount() noexcept
-{
-    return g_ReallocBytesCount;
-}
-
-void CountingAllocatorImpl::ResetCounts() noexcept
-{
-    g_FreeCount = 0;
-    g_AllocCount = 0;
-    g_ReallocCount = 0;
-    g_FreeBytesCount = 0;
-    g_AllocBytesCount = 0;
-    g_ReallocBytesCount = 0;
-}
-
-bool CountingAllocatorImpl::VerifyCounts() noexcept
-{
-    return (g_AllocCount == g_FreeCount);
-}
-
-bool CountingAllocatorImpl::VerifyCounts(uint32_t expectedAllocs,
-                                         uint32_t expectedFrees) noexcept
-{
-    return (g_AllocCount == expectedAllocs) && (g_FreeCount == expectedFrees);
-}
+uint32_t CountingAllocator::g_FreeCount = 0;
+uint32_t CountingAllocator::g_AllocCount = 0;
+size_t CountingAllocator::g_FreeBytesCount = 0;
+size_t CountingAllocator::g_AllocBytesCount = 0;
+uint32_t StatefulCountingAllocator::g_FreeCount = 0;
+uint32_t StatefulCountingAllocator::g_AllocCount = 0;
+size_t StatefulCountingAllocator::g_FreeBytesCount = 0;
+size_t StatefulCountingAllocator::g_AllocBytesCount = 0;
 
 } // namespace radtest

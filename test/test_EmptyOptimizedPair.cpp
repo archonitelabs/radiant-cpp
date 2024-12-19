@@ -90,12 +90,12 @@ struct ThrowingStateful
 RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<Empty, bool>()));
 RAD_S_ASSERT(!noexcept(rad::EmptyOptimizedPair<ThrowingEmpty, bool>()));
 RAD_S_ASSERT(!noexcept(rad::EmptyOptimizedPair<Empty, ThrowingEmpty>()));
-RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<radtest::Allocator<int>, bool>(
-    rad::DeclVal<radtest::Allocator<int>&>(), true)));
-RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<radtest::Allocator<int>, bool>(
-    rad::DeclVal<const radtest::Allocator<int>&>(), true)));
-RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<radtest::Allocator<int>, bool>(
-    rad::DeclVal<radtest::Allocator<int>&&>(), true)));
+RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<radtest::Mallocator, bool>(
+    rad::DeclVal<radtest::Mallocator&>(), true)));
+RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<radtest::Mallocator, bool>(
+    rad::DeclVal<const radtest::Mallocator&>(), true)));
+RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<radtest::Mallocator, bool>(
+    rad::DeclVal<radtest::Mallocator&&>(), true)));
 
 // empty copy ctors
 RAD_S_ASSERT(noexcept(rad::EmptyOptimizedPair<Empty, Empty>(
