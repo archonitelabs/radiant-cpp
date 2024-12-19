@@ -17,6 +17,7 @@
 #include "radiant/TotallyRad.h"
 #include "radiant/Algorithm.h" // NOLINT(misc-include-cleaner)
 #include "radiant/Iterator.h"
+#include "radiant/Memory.h"
 #include "radiant/Res.h"
 #include "radiant/Span.h"
 #include "radiant/TypeTraits.h"
@@ -34,12 +35,14 @@ struct VectorAlloc
 {
 public:
 
+    using AllocatorTraits = AllocTraits<TAllocator>;
+
     ~VectorAlloc()
     {
         if (buffer)
         {
             Clear();
-            allocator.Free(buffer);
+            AllocatorTraits::Free(allocator, buffer, capacity);
         }
     }
 
@@ -57,7 +60,7 @@ public:
     {
         RAD_ASSERT(buffer == nullptr);
 
-        buffer = allocator.Alloc(count);
+        buffer = AllocatorTraits::template Alloc<T>(allocator, count);
         if (!buffer)
         {
             return false;
@@ -384,10 +387,7 @@ struct VectorStorage<T, TInlineCount, false>
     template <typename TAllocator>
     void Free(TAllocator& alloc) noexcept
     {
-        if (m_data)
-        {
-            alloc.Free(m_data);
-        }
+        AllocTraits<TAllocator>::Free(alloc, m_data, m_capacity);
     }
 
     template <typename TAllocator>
@@ -486,9 +486,9 @@ struct VectorStorage<T, TInlineCount, true>
     template <typename TAllocator>
     void Free(TAllocator& alloc) noexcept
     {
-        if (!IsInline() && m_data)
+        if (!IsInline())
         {
-            alloc.Free(m_data);
+            AllocTraits<TAllocator>::Free(alloc, m_data, m_capacity);
         }
     }
 
@@ -520,10 +520,7 @@ struct VectorStorage<T, TInlineCount, true>
             //
             auto data = m_data;
             ManipType().MoveCtorDtorSrcRange(m_inline, data, m_size);
-            if (data)
-            {
-                alloc.Free(data);
-            }
+            AllocTraits<TAllocator>::Free(alloc, data, m_capacity);
             m_capacity = InlineCount;
         }
         else
@@ -679,22 +676,22 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
     }
 
     template <typename TAllocator>
-    void Move(TAllocator& alloc, ThisType& to) noexcept
+    void Move(TAllocator& to_alloc, ThisType& to) noexcept
     {
         if RAD_UNLIKELY (this == &to)
         {
             return;
         }
 
+        to.Clear();
+        RAD_VERIFY(to.ShrinkToFit(to_alloc).IsOk());
         Swap(to);
-        Clear();
-        RAD_VERIFY(ShrinkToFit(alloc).IsOk());
     }
 
-    template <typename TAllocator,
-              typename U = T,
-              EnIf<!IsNoThrowCopyCtor<U>, int> = 0>
-    Err Copy(TAllocator& alloc, ThisType& to)
+    template <typename TAllocator>
+    Err StrongCopy(TAllocator& new_alloc,
+                   ThisType& to,
+                   TAllocator& old_to_alloc)
     {
         if RAD_UNLIKELY (this == &to)
         {
@@ -711,13 +708,18 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
         // implemented the basic thing, but should/will optimize further.  Two
         // easy things we could are to use unused space in the vectors and/or
         // some stack space to avoid expensive memory allocations when possible.
-        VectorAlloc<ValueType, TAllocator> vec(alloc);
+        TAllocator target_alloc =
+            AllocTraits<TAllocator>::PropagateOnCopy ? new_alloc : old_to_alloc;
+        VectorAlloc<ValueType, TAllocator> vec(target_alloc);
         if (!vec.Alloc(m_size))
         {
             return Error::NoMemory;
         }
 
         ManipType().CopyCtorRange(vec, Data(), m_size);
+
+        to.Clear();
+        RAD_VERIFY(to.ShrinkToFit(old_to_alloc).IsOk());
         to.Swap(vec);
 
         return NoError;
@@ -725,15 +727,37 @@ struct VectorOperations : public VectorStorage<T, TInlineCount>
 
     template <typename TAllocator,
               typename U = T,
+              EnIf<!IsNoThrowCopyCtor<U>, int> = 0>
+    Err Copy(TAllocator& new_alloc, ThisType& to, TAllocator& old_to_alloc)
+    {
+        return StrongCopy(new_alloc, to, old_to_alloc);
+    }
+
+    template <typename TAllocator,
+              typename U = T,
               EnIf<IsNoThrowCopyCtor<U>, int> = 0>
-    Err Copy(TAllocator& alloc, ThisType& to) noexcept
+    Err Copy(TAllocator& new_alloc,
+             ThisType& to,
+             TAllocator& old_to_alloc) noexcept
     {
         if RAD_UNLIKELY (this == &to)
         {
             return NoError;
         }
 
-        Err res = to.Reserve(alloc, m_size);
+        bool ShouldStrongCopy =
+            AllocTraits<TAllocator>::PropagateOnCopy &&
+            !AllocTraits<TAllocator>::Equal(new_alloc, old_to_alloc);
+        if (ShouldStrongCopy)
+        {
+            // handle the propagation case, which involves freeing with the old
+            // allocator and allocating with the new one.
+            return StrongCopy(new_alloc, to, old_to_alloc);
+        }
+
+        // Not propagating allocators (equality or PropagateOnCopy=false).
+        // So always use the old allocator.
+        Err res = to.Reserve(old_to_alloc, m_size);
         if (!res.IsOk())
         {
             return res.Err();

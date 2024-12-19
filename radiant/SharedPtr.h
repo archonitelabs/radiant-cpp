@@ -179,13 +179,15 @@ private:
 template <typename T, typename TAlloc>
 class PtrBlock final : public PtrBlockBase
 {
+private:
+
+    using AllocatorTraits = AllocTraits<TAlloc>;
+
 public:
 
-    using AllocatorType = typename TAlloc::template Rebind<PtrBlock>::Other;
+    using AllocatorType = TAlloc;
     using ValueType = T;
     using PairType = EmptyOptimizedPair<AllocatorType, ValueType>;
-
-    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAlloc);
 
     template <typename... TArgs>
     PtrBlock(const AllocatorType& alloc, TArgs&&... args) noexcept(
@@ -208,6 +210,8 @@ public:
     void OnWeakZero() const noexcept override
     {
         //
+        // Do the moral equivalent of `delete this`.
+        //
         // Take a copy of the allocator first, this will be used to do the free.
         // Then destruct the remaining parts of the block.
         //
@@ -220,7 +224,7 @@ public:
         AllocatorType alloc(Allocator());
         auto self = const_cast<PtrBlock*>(this);
         Allocator().~AllocatorType();
-        alloc.Free(self);
+        AllocatorTraits::Free(alloc, self, 1);
     }
 
     AllocatorType& Allocator() noexcept
@@ -904,43 +908,36 @@ namespace detail
 struct AllocateSharedImpl
 {
     /// @brief RAII-safety wrapper helper
-    template <typename TAlloc>
+    template <typename BlockType, typename TAlloc>
     struct AllocateSharedHelper
     {
-        constexpr AllocateSharedHelper(TAlloc& ta) noexcept
+        constexpr AllocateSharedHelper(const TAlloc& ta) noexcept
             : alloc(ta),
               block(nullptr)
         {
+            block = AllocTraits<TAlloc>::template Alloc<BlockType>(alloc, 1);
         }
 
         ~AllocateSharedHelper()
         {
-            if (block)
-            {
-                alloc.Free(block);
-            }
+            AllocTraits<TAlloc>::Free(alloc, block, 1);
         }
 
-        TAlloc& alloc;
-        typename TAlloc::ValueType* block;
+        TAlloc alloc;
+        BlockType* block = nullptr;
     };
 
     template <typename T, typename TAlloc, typename... TArgs>
     static inline SharedPtr<T> AllocateShared(const TAlloc& alloc,
-                                              TArgs&&... args) //
-        noexcept(noexcept(DeclVal<typename PtrBlock<T, TAlloc>::AllocatorType>()
-                              .Alloc(1)) &&
-                 IsNoThrowCtor<T, TArgs...>)
+                                              TArgs&&... args)
     {
         using BlockType = PtrBlock<T, TAlloc>;
-        typename BlockType::AllocatorType blockAlloc(alloc);
 
-        AllocateSharedHelper<decltype(blockAlloc)> excSafe(blockAlloc);
+        AllocateSharedHelper<BlockType, TAlloc> excSafe(alloc);
 
-        excSafe.block = blockAlloc.Alloc(1);
         if RAD_LIKELY (excSafe.block != nullptr)
         {
-            new (excSafe.block) BlockType(blockAlloc, Forward<TArgs>(args)...);
+            new (excSafe.block) BlockType(alloc, Forward<TArgs>(args)...);
             auto block = excSafe.block;
             excSafe.block = nullptr;
             return SharedPtr<T>(block, &block->Value());
@@ -963,8 +960,6 @@ SharedPtr<T> AllocateShared(const TAlloc& alloc, TArgs&&... args) //
     noexcept(noexcept(detail::AllocateSharedImpl::AllocateShared<T, TAlloc>(
         alloc, Forward<TArgs>(args)...)))
 {
-    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAlloc);
-
     return detail::AllocateSharedImpl::AllocateShared<T, TAlloc>(
         alloc,
         Forward<TArgs>(args)...);
@@ -981,8 +976,6 @@ template <typename T, typename TAlloc RAD_ALLOCATOR_EQ(T), typename... TArgs>
 SharedPtr<T> MakeShared(TArgs&&... args) noexcept(
     noexcept(AllocateShared<T>(DeclVal<TAlloc&>(), Forward<TArgs>(args)...)))
 {
-    RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(TAlloc);
-
     TAlloc alloc;
     return AllocateShared<T>(alloc, Forward<TArgs>(args)...);
 }
