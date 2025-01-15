@@ -44,6 +44,7 @@ RAD_GCC_COPTS = [
     "-Wvarargs",
     "-Wvla",
     "-Wwrite-strings",
+    "-Wno-multichar",
     "-Werror",
     "-Wpedantic",
 ]
