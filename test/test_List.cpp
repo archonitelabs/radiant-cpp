@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#define RAD_DEFAULT_ALLOCATOR radtest::Allocator
+#define RAD_DEFAULT_ALLOCATOR radtest::Mallocator
 #include "test/TestAlloc.h"
 #include "test/TestInputStringLiteralRange.h"
 
@@ -80,7 +80,7 @@ TEST(ListTest, DefaultConstructIsEmpty)
 
 TEST(ListTest, AllocatorConstructors)
 {
-    using StatefulAlloc = radtest::StatefulAllocator<int>;
+    using StatefulAlloc = radtest::StatefulAllocator;
     {
         rad::List<int, StatefulAlloc> default_ctor;
         StatefulAlloc default_ctor_alloc = default_ctor.GetAllocator();
@@ -94,22 +94,21 @@ TEST(ListTest, AllocatorConstructors)
         StatefulAlloc alloc = alloc_ctor.GetAllocator();
         EXPECT_EQ(alloc.m_state, 42u);
 
-        // regular move constructor needs to steal the original allocator
+        // regular move constructor needs to copy the original allocator
         rad::List<int, StatefulAlloc> moving_alloc_ctor(std::move(alloc_ctor));
         StatefulAlloc moved_from_alloc = alloc_ctor.GetAllocator();
-        EXPECT_EQ(moved_from_alloc.m_state, radtest::k_MovedFromState);
+        EXPECT_EQ(moved_from_alloc.m_state, 42u);
         StatefulAlloc moved_to_alloc = moving_alloc_ctor.GetAllocator();
         EXPECT_EQ(moved_to_alloc.m_state, 42u);
 
         StatefulAlloc source_alloc2;
         source_alloc2.m_state = 99;
         rad::List<int, StatefulAlloc> move_assigned(source_alloc2);
+        // moving_alloc_ctor's "42" allocator will propagate to move_assigned
         move_assigned = std::move(moving_alloc_ctor);
         StatefulAlloc assigned_from_alloc = moving_alloc_ctor.GetAllocator();
 
-        // assigned_from_alloc should have whatever move_assigned had in it
-        // before
-        EXPECT_EQ(assigned_from_alloc.m_state, 99u);
+        EXPECT_EQ(assigned_from_alloc.m_state, 42U);
         StatefulAlloc assigned_to_alloc = move_assigned.GetAllocator();
         EXPECT_EQ(assigned_to_alloc.m_state, 42u);
     }
@@ -117,11 +116,11 @@ TEST(ListTest, AllocatorConstructors)
 
 TEST(ListTest, PushBackFailureRecovery)
 {
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
 
     {
-        rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
             alloc);
 
         EXPECT_TRUE(list.PushBack(1).IsOk());
@@ -408,6 +407,76 @@ TEST(ListTest, MoveConstruct)
     }
 }
 
+TEST(ListTest, MoveAssign)
+{
+    {
+        rad::List<int> empty;
+        rad::List<int> move_from_empty;
+        move_from_empty = std::move(empty);
+        ListEqual(empty, {});
+        ListEqual(move_from_empty, {});
+    }
+    {
+        rad::List<int> one;
+        EXPECT_TRUE(one.PushBack(1).IsOk());
+        rad::List<int> move_from_one;
+
+        move_from_one = std::move(one);
+
+        ListEqual(one, {});
+        ListEqual(move_from_one, { 1 });
+    }
+    {
+        rad::List<int> two;
+        EXPECT_TRUE(two.AssignRange(std::initializer_list<int>{ 1, 2 }).IsOk());
+
+        rad::List<int> move_from_two;
+
+        move_from_two = std::move(two);
+        ListEqual(two, {});
+        ListEqual(move_from_two, { 1, 2 });
+    }
+    {
+        rad::List<int> one;
+        EXPECT_TRUE(one.PushBack(1).IsOk());
+
+        rad::List<int> move_from_one;
+        move_from_one = std::move(one);
+
+        // ensure we can still mutate after moves
+        EXPECT_TRUE(one.PushBack(101).IsOk());
+        EXPECT_TRUE(move_from_one.PushBack(201).IsOk());
+        ListEqual(one, { 101 });
+        ListEqual(move_from_one, { 1, 201 });
+    }
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-move"
+#endif
+#ifdef RAD_CLANG_VERSION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
+#endif
+    {
+        rad::List<int> self_move;
+        self_move = std::move(self_move);
+        ListEqual(self_move, {});
+    }
+    {
+        rad::List<int> self_move;
+        EXPECT_TRUE(self_move.PushBack(101).IsOk());
+        self_move = std::move(self_move);
+        EXPECT_TRUE(self_move.PushBack(102).IsOk());
+        ListEqual(self_move, { 101, 102 });
+    }
+#ifdef RAD_CLANG_VERSION
+#pragma clang diagnostic pop
+#endif
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
+#pragma GCC diagnostic pop
+#endif
+}
+
 TEST(ListTest, ClearSome)
 {
     rad::List<int> i;
@@ -519,10 +588,10 @@ TEST(ListTest, AssignCount)
 
 TEST(ListTest, Emplace)
 {
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<ImmovableStruct, radtest::HeapAllocator> alloc(heap);
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
     rad::List<ImmovableStruct,
-              radtest::AllocWrapper<ImmovableStruct, radtest::HeapAllocator>>
+              radtest::ResourceAllocator<radtest::HeapResource>>
         input(alloc);
 
     // emplace at the end
@@ -571,10 +640,9 @@ TEST(ListTest, Emplace)
 
 TEST(ListTest, MoveInsert)
 {
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<MoveStruct, radtest::HeapAllocator> alloc(heap);
-    rad::List<MoveStruct,
-              radtest::AllocWrapper<MoveStruct, radtest::HeapAllocator>>
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+    rad::List<MoveStruct, radtest::ResourceAllocator<radtest::HeapResource>>
         input(alloc);
 
     MoveStruct ms;
@@ -641,10 +709,9 @@ TEST(ListTest, MoveInsert)
 
 TEST(ListTest, CopyInsert)
 {
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<CopyStruct, radtest::HeapAllocator> alloc(heap);
-    rad::List<CopyStruct,
-              radtest::AllocWrapper<CopyStruct, radtest::HeapAllocator>>
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+    rad::List<CopyStruct, radtest::ResourceAllocator<radtest::HeapResource>>
         input(alloc);
 
     CopyStruct cs;
@@ -710,9 +777,9 @@ TEST(ListTest, CopyInsert)
 
 TEST(ListTest, AssignFailure)
 {
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-    rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+    rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
         alloc);
 
     // AssignCount fails back to empty when it starts empty
@@ -815,6 +882,29 @@ TEST(ListTest, PostIncrPostDecr)
     EXPECT_EQ(*--pre_cend, 1);
     EXPECT_EQ(*post_cend--, 2);
 }
+
+#if !RAD_DBG
+TEST(ListTest, SelfSplice)
+{
+    rad::List<int> list;
+    EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
+
+    list.SpliceAll(list.end(), list);
+    ListEqual(list, { 1, 2, 3 });
+    list.SpliceAll(++list.begin(), list);
+    ListEqual(list, { 1, 2, 3 });
+
+    list.SpliceOne(list.end(), list, list.begin());
+    ListEqual(list, { 1, 2, 3 });
+    list.SpliceOne(list.begin(), list, ++list.begin());
+    ListEqual(list, { 1, 2, 3 });
+
+    list.SpliceSome(list.end(), list, list.begin(), list.end());
+    ListEqual(list, { 1, 2, 3 });
+    list.SpliceSome(list.begin(), list, list.begin(), ++list.begin());
+    ListEqual(list, { 1, 2, 3 });
+}
+#endif
 
 TEST(ListTest, SpliceSomeEmpties)
 {
@@ -1432,9 +1522,9 @@ TEST(ListTest, PrependRange)
         chars.PrependRange(radtest::TestInputStringLiteralRange("abc")).IsOk());
     ListEqual(chars, { 'a', 'b', 'c', 'x', 'y', 'z' });
 
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-    rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+    rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
         alloc);
 
     EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
@@ -1468,9 +1558,9 @@ TEST(ListTest, AppendRange)
         chars.AppendRange(radtest::TestInputStringLiteralRange("abc")).IsOk());
     ListEqual(chars, { 'x', 'y', 'z', 'a', 'b', 'c' });
 
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-    rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+    rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
         alloc);
 
     EXPECT_TRUE(list.AssignRange(std::initializer_list<int>{ 1, 2, 3 }).IsOk());
@@ -1521,9 +1611,9 @@ TEST(ListTest, InsertRange)
         ListEqual(chars, { 'x', 'a', 'b', 'c', 'y', 'z' });
     }
     {
-        radtest::HeapAllocator heap;
-        radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-        rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        radtest::HeapResource heap;
+        radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+        rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
             alloc);
 
         EXPECT_TRUE(
@@ -1566,9 +1656,9 @@ TEST(ListTest, InsertSome)
         ListEqual(dest, { 0, 100, 101, 1, 2, 3 });
     }
     {
-        radtest::HeapAllocator heap;
-        radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-        rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        radtest::HeapResource heap;
+        radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+        rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
             alloc);
 
         EXPECT_TRUE(
@@ -1609,9 +1699,9 @@ TEST(ListTest, InsertInitializerList)
         ListEqual(dest, { 0, 100, 101, 1, 2, 3 });
     }
     {
-        radtest::HeapAllocator heap;
-        radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-        rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        radtest::HeapResource heap;
+        radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+        rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
             alloc);
 
         EXPECT_TRUE(
@@ -1652,9 +1742,9 @@ TEST(ListTest, InsertCount)
         ListEqual(dest, { 0, 100, 100, 1, 2, 3 });
     }
     {
-        radtest::HeapAllocator heap;
-        radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-        rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        radtest::HeapResource heap;
+        radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+        rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
             alloc);
 
         EXPECT_TRUE(
@@ -1689,9 +1779,9 @@ TEST(ListTest, Clone)
         ListEqual(li2.Ok(), { 1, 2, 3 });
     }
     {
-        radtest::HeapAllocator heap;
-        radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
-        rad::List<int, radtest::AllocWrapper<int, radtest::HeapAllocator>> list(
+        radtest::HeapResource heap;
+        radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
+        rad::List<int, radtest::ResourceAllocator<radtest::HeapResource>> list(
             alloc);
 
         EXPECT_TRUE(
@@ -2197,6 +2287,51 @@ TEST(ListTest, FrontBack)
     }
 }
 
+TEST(ListTest, Swap)
+{
+    {
+        rad::List<int> list1;
+        EXPECT_TRUE(
+            list1.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
+
+        rad::List<int> list2;
+        EXPECT_TRUE(
+            list2.AssignRange(std::initializer_list<int>{ 11, 12, 13, 14, 15 })
+                .IsOk());
+
+        list1.Swap(list2);
+        ListEqual(list1, { 11, 12, 13, 14, 15 });
+        ListEqual(list2, { 1, 2, 3, 4, 5 });
+    }
+    {
+        rad::List<int> list1;
+        EXPECT_TRUE(
+            list1.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
+
+        rad::List<int> list2;
+
+        list1.Swap(list2);
+        ListEqual(list1, {});
+        ListEqual(list2, { 1, 2, 3, 4, 5 });
+    }
+    {
+        rad::List<int> list1;
+        EXPECT_TRUE(
+            list1.AssignRange(std::initializer_list<int>{ 1, 2, 3, 4, 5 })
+                .IsOk());
+
+        list1.Swap(list1);
+        ListEqual(list1, { 1, 2, 3, 4, 5 });
+    }
+    {
+        rad::List<int> list1;
+        list1.Swap(list1);
+        ListEqual(list1, {});
+    }
+}
+
 TEST(ListTest, ReverseIterators)
 {
     {
@@ -2237,3 +2372,109 @@ TEST(ListTest, ReverseIterators)
         ListEqual(list2, { 5, 4, 3, 2, 1 });
     }
 }
+
+#ifdef RAD_GCC_VERSION
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmultichar"
+#endif
+TEST(ListTest, TroubleAllocators)
+{
+    {
+        using StickyList = rad::List<int, radtest::StickyTaggedAllocator>;
+        StickyList list1(radtest::StickyTaggedAllocator{ 'tst1' });
+        EXPECT_TRUE(list1.PushBack(1).IsOk());
+
+        StickyList list2(std::move(list1));
+        EXPECT_TRUE(list1.Empty());
+        EXPECT_EQ(list1.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+        EXPECT_EQ(list2.GetAllocator().m_tag, uint32_t('tst1'));
+
+        // These all static_assert, as they should
+        // list1 = std::move(list2);
+        // list1.Swap(list2);
+        // list1.SpliceAll(list1.end(), list2);
+        // list1.Clone();
+    }
+    {
+        using StickyDefaultList =
+            rad::List<int, radtest::StickyDefaultTaggedAllocator>;
+        StickyDefaultList list1(
+            radtest::StickyDefaultTaggedAllocator{ 'tst1' });
+        EXPECT_TRUE(list1.PushBack(1).IsOk());
+
+        StickyDefaultList list2(std::move(list1));
+        EXPECT_TRUE(list1.Empty());
+        EXPECT_EQ(list1.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+        EXPECT_EQ(list2.GetAllocator().m_tag, uint32_t('tst1'));
+
+        auto expected_list3 = list2.Clone();
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+        EXPECT_EQ(expected_list3.Ok().ExpensiveSize(), 1u);
+        EXPECT_EQ(expected_list3.Ok().GetAllocator().m_tag, uint32_t(1234));
+
+        // These all static_assert, as they should
+        // list1 = std::move(list2);
+        // list1.Swap(list2);
+        // list1.SpliceAll(list1.end(), list2);
+    }
+    {
+        using MovingList = rad::List<int, radtest::MovingTaggedAllocator>;
+        MovingList list1(radtest::MovingTaggedAllocator{ 'abcd' });
+        EXPECT_TRUE(list1.PushBack(1).IsOk());
+
+        MovingList list2(std::move(list1));
+        EXPECT_TRUE(list1.Empty());
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+
+        auto expected_list3 = list2.Clone();
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+        EXPECT_EQ(expected_list3.Ok().ExpensiveSize(), 1u);
+
+        MovingList list4(radtest::MovingTaggedAllocator{ 'wxyz' });
+        EXPECT_TRUE(list1.PushBack(99).IsOk());
+        list1.Swap(list4);
+        EXPECT_TRUE(list1.Empty());
+        EXPECT_EQ(list4.ExpensiveSize(), 1u);
+        EXPECT_EQ(list1.GetAllocator().m_tag, uint32_t('wxyz'));
+        EXPECT_EQ(list4.GetAllocator().m_tag, uint32_t('abcd'));
+
+        list1 = std::move(list4);
+        EXPECT_TRUE(list4.Empty());
+        EXPECT_EQ(list1.ExpensiveSize(), 1u);
+        EXPECT_EQ(list1.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(list4.GetAllocator().m_tag, uint32_t('abcd'));
+
+        // This static_asserts, as it should
+        // list1.SpliceAll(list1.end(), list2);
+    }
+    {
+        using TypedList = rad::List<int, radtest::TypedAllocator>;
+        TypedList list1;
+        EXPECT_TRUE(list1.PushBack(1).IsOk());
+
+        TypedList list2(std::move(list1));
+        EXPECT_TRUE(list1.Empty());
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+
+        auto expected_list3 = list2.Clone();
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+        EXPECT_EQ(expected_list3.Ok().ExpensiveSize(), 1u);
+
+        list1 = std::move(list2);
+        EXPECT_TRUE(list2.Empty());
+        EXPECT_EQ(list1.ExpensiveSize(), 1u);
+
+        list1.Swap(list2);
+        EXPECT_TRUE(list1.Empty());
+        EXPECT_EQ(list2.ExpensiveSize(), 1u);
+
+        list1.SpliceAll(list1.end(), list2);
+        EXPECT_TRUE(list2.Empty());
+        EXPECT_EQ(list1.ExpensiveSize(), 1u);
+    }
+}
+#ifdef RAD_GCC_VERSION
+#pragma GCC diagnostic pop
+#endif

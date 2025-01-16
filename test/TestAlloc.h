@@ -16,87 +16,167 @@
 
 #include "gtest/gtest.h"
 
+#include "radiant/TotallyRad.h"
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+
 namespace radtest
 {
 
-static constexpr uint32_t k_BadState = 0xdeadc0de;
 static constexpr uint32_t k_MovedFromState = 0xc001d00d;
 
-template <typename T>
-class Allocator
+class Mallocator
 {
 public:
 
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
-
-    using ThisType = Allocator<T>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
-
-    ~Allocator() = default;
-
-    constexpr Allocator() noexcept = default;
-
-    constexpr Allocator(const Allocator&) noexcept = default;
-
-    template <typename U>
-    constexpr Allocator(const Allocator<U>&) noexcept
-    {
-    }
-
-    template <typename U>
-    struct Rebind
-    {
-        using Other = Allocator<U>;
-    };
-
-    void Free(ValueType* ptr) noexcept
-    {
-        free(ptr);
-    }
-
-    ValueType* Alloc(SizeType count) noexcept
-    {
-        return (ValueType*)malloc(count * sizeof(T));
-    }
-
-    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
-    {
-        return (ValueType*)realloc(ptr, count * sizeof(T));
-    }
-
-    void FreeBytes(void* ptr) noexcept
-    {
-        free(ptr);
-    }
-
-    void* AllocBytes(SizeType size) noexcept
+    static void* AllocBytes(size_t size)
     {
         return malloc(size);
     }
 
-    void* ReallocBytes(void* ptr, SizeType size) noexcept
+    static void FreeBytes(void* ptr, size_t size) noexcept
     {
-        return realloc(ptr, size);
+        RAD_UNUSED(size);
+        free(ptr);
+    }
+
+    static void HandleSizeOverflow()
+    {
     }
 };
 
-template <typename T>
+inline void* TaggedAlloc(size_t size, uint32_t tag)
+{
+    static constexpr size_t kMaxSize = ~uint32_t(0);
+    if (size > kMaxSize)
+    {
+        return nullptr;
+    }
+    RAD_S_ASSERT(sizeof(max_align_t) >= 2 * sizeof(uint32_t));
+
+    void* mem = malloc(size + sizeof(max_align_t));
+    uint32_t* as_num = static_cast<uint32_t*>(mem);
+    as_num[0] = tag;
+    as_num[1] = static_cast<uint32_t>(size); // range checked above
+    return static_cast<max_align_t*>(mem) + 1;
+}
+
+inline void TaggedFree(void* ptr, size_t size, uint32_t tag)
+{
+    if (ptr == nullptr)
+    {
+        return;
+    }
+    void* alloc_begin = static_cast<max_align_t*>(ptr) - 1;
+    uint32_t* as_num = static_cast<uint32_t*>(alloc_begin);
+    EXPECT_EQ(as_num[0], tag);
+    EXPECT_EQ(as_num[1], size);
+    free(alloc_begin);
+}
+
+class StickyTaggedAllocator
+{
+public:
+
+    // Propagates on false, because this is sticky
+    static constexpr bool PropagateOnCopy = false;
+    static constexpr bool PropagateOnMoveAssignment = false;
+    static constexpr bool PropagateOnSwap = false;
+    static constexpr bool IsAlwaysEqual = false;
+
+    explicit StickyTaggedAllocator(uint32_t tag)
+        : m_tag(tag)
+    {
+    }
+
+    void* AllocBytes(size_t size)
+    {
+        return TaggedAlloc(size, m_tag);
+    }
+
+    void FreeBytes(void* ptr, size_t size) noexcept
+    {
+        TaggedFree(ptr, size, m_tag);
+    }
+
+    static void HandleSizeOverflow()
+    {
+    }
+
+    bool operator==(const StickyTaggedAllocator& rhs) const noexcept
+    {
+        return m_tag == rhs.m_tag;
+    }
+
+    uint32_t m_tag = 0;
+};
+
+class StickyDefaultTaggedAllocator : public StickyTaggedAllocator
+{
+public:
+
+    using StickyTaggedAllocator::StickyTaggedAllocator;
+
+    explicit StickyDefaultTaggedAllocator()
+        : StickyTaggedAllocator(1234)
+    {
+    }
+};
+
+class MovingTaggedAllocator
+{
+public:
+
+    // Propagates on true, because this moves around
+    static constexpr bool PropagateOnCopy = true;
+    static constexpr bool PropagateOnMoveAssignment = true;
+    static constexpr bool PropagateOnSwap = true;
+    static constexpr bool IsAlwaysEqual = false;
+
+    explicit MovingTaggedAllocator(uint32_t tag)
+        : m_tag(tag)
+    {
+    }
+
+    void* AllocBytes(size_t size)
+    {
+        return TaggedAlloc(size, m_tag);
+    }
+
+    void FreeBytes(void* ptr, size_t size) noexcept
+    {
+        TaggedFree(ptr, size, m_tag);
+    }
+
+    static void HandleSizeOverflow()
+    {
+    }
+
+    bool operator==(const MovingTaggedAllocator& rhs) const noexcept
+    {
+        return m_tag == rhs.m_tag;
+    }
+
+    uint32_t m_tag = 0;
+};
+
 class StatefulAllocator
 {
 public:
 
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
+    static constexpr bool IsAlwaysEqual = false;
+    static constexpr bool PropagateOnMoveAssignment = true;
+    static constexpr bool PropagateOnCopy = true;
+    static constexpr bool PropagateOnSwap = true;
 
-    using ThisType = StatefulAllocator<T>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
+    bool operator==(const StatefulAllocator& other) const
+    {
+        return m_state == other.m_state;
+    }
+
+    static constexpr uint32_t k_BadState = 0xdeadc0de;
 
     ~StatefulAllocator()
     {
@@ -110,12 +190,6 @@ public:
 
     StatefulAllocator(const StatefulAllocator&) noexcept = default;
     StatefulAllocator& operator=(const StatefulAllocator&) noexcept = default;
-
-    template <typename U>
-    StatefulAllocator(const StatefulAllocator<U>& other) noexcept
-        : m_state(other.m_state)
-    {
-    }
 
     StatefulAllocator(StatefulAllocator&& other) noexcept
         : m_state(other.m_state)
@@ -136,153 +210,64 @@ public:
         return *this;
     }
 
-    template <typename U>
-    struct Rebind
-    {
-        using Other = StatefulAllocator<U>;
-    };
-
-    void Free(ValueType* ptr) noexcept
+    void FreeBytes(void* ptr, size_t byte_count) noexcept
     {
         EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
 
+        RAD_UNUSED(byte_count);
         free(ptr);
     }
 
-    ValueType* Alloc(SizeType count) noexcept
+    void* AllocBytes(size_t byte_count) noexcept
     {
         EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
 
-        return (ValueType*)malloc(count * sizeof(T));
-    }
-
-    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
-    {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        return (ValueType*)realloc(ptr, count * sizeof(T));
-    }
-
-    void FreeBytes(void* ptr) noexcept
-    {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        free(ptr);
-    }
-
-    void* AllocBytes(SizeType size) noexcept
-    {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        return malloc(size);
+        return malloc(byte_count);
     }
 
     uint32_t m_state;
 };
 
-template <typename T>
 class FailingAllocator
 {
 public:
 
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
-
-    using ThisType = FailingAllocator<T>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
-
-    ~FailingAllocator() = default;
-
-    constexpr FailingAllocator() noexcept = default;
-
-    constexpr FailingAllocator(const FailingAllocator&) noexcept = default;
-
-    template <typename U>
-    constexpr FailingAllocator(const FailingAllocator<U>&) noexcept
+    void FreeBytes(void* mem, size_t byte_count) noexcept
     {
+        RAD_UNUSED(mem);
+        RAD_UNUSED(byte_count);
     }
 
-    template <typename U>
-    struct Rebind
+    void* AllocBytes(size_t byte_count) noexcept
     {
-        using Other = FailingAllocator<U>;
-    };
-
-    void Free(ValueType*) noexcept
-    {
-    }
-
-    ValueType* Alloc(SizeType) noexcept
-    {
+        RAD_UNUSED(byte_count);
         return nullptr;
     }
 
-    ValueType* Realloc(ValueType*, SizeType) noexcept
+    static void HandleSizeOverflow()
     {
-        return nullptr;
-    }
-
-    void FreeBytes(void*) noexcept
-    {
-    }
-
-    void* AllocBytes(SizeType) noexcept
-    {
-        return nullptr;
-    }
-
-    void* ReallocBytes(void*, SizeType) noexcept
-    {
-        return nullptr;
     }
 };
 
-template <typename T>
 class OOMAllocator
 {
 public:
 
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
-
-    using ThisType = StatefulAllocator<T>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
-
-    ~OOMAllocator()
-    {
-    }
+    static constexpr bool IsAlwaysEqual = true;
 
     explicit OOMAllocator(int oom) noexcept
         : m_oom(oom)
     {
     }
 
-    OOMAllocator(const OOMAllocator&) noexcept = default;
-
-    template <typename U>
-    OOMAllocator(const OOMAllocator<U>& other) noexcept
-        : m_oom(other.m_oom)
+    void FreeBytes(void* ptr, size_t byte_count) noexcept
     {
-    }
+        RAD_UNUSED(byte_count);
 
-    template <typename U>
-    struct Rebind
-    {
-        using Other = OOMAllocator<U>;
-    };
-
-    void Free(ValueType* ptr) noexcept
-    {
         free(ptr);
     }
 
-    ValueType* Alloc(SizeType count) noexcept
+    void* AllocBytes(size_t byte_count) noexcept
     {
         m_oom--;
         if (m_oom < 0)
@@ -290,195 +275,120 @@ public:
             return nullptr;
         }
 
-        return (ValueType*)malloc(count * sizeof(T));
+        return malloc(byte_count);
     }
 
-    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
+    static void HandleSizeOverflow()
     {
-        m_oom--;
-        if (m_oom < 0)
-        {
-            return nullptr;
-        }
-
-        return (ValueType*)realloc(ptr, count * sizeof(T));
-    }
-
-    void FreeBytes(void* ptr) noexcept
-    {
-        free(ptr);
-    }
-
-    void* AllocBytes(SizeType size) noexcept
-    {
-        m_oom--;
-        if (m_oom < 0)
-        {
-            return nullptr;
-        }
-
-        return malloc(size);
     }
 
     int m_oom;
 };
 
-class CountingAllocatorImpl
+class MoveOOMAllocator : public OOMAllocator
 {
 public:
 
-    static void Free(void* ptr) noexcept;
-    static void* Alloc(uint32_t size) noexcept;
-    static void* Realloc(void* ptr, uint32_t size) noexcept;
-    static void FreeBytes(void* ptr) noexcept;
-    static void* AllocBytes(uint32_t size) noexcept;
-    static void* ReallocBytes(void* ptr, uint32_t size) noexcept;
-    static uint32_t FreeCount() noexcept;
-    static uint32_t AllocCount() noexcept;
-    static uint32_t ReallocCount() noexcept;
-    static uint32_t FreeBytesCount() noexcept;
-    static uint32_t AllocBytesCount() noexcept;
-    static uint32_t ReallocBytesCount() noexcept;
-    static void ResetCounts() noexcept;
-    static bool VerifyCounts() noexcept;
-    static bool VerifyCounts(uint32_t expectedAllocs,
-                             uint32_t expectedFrees) noexcept;
+    static constexpr bool IsAlwaysEqual = false;
+    static constexpr bool PropagateOnCopy = true;
+    static constexpr bool PropagateOnMoveAssignment = true;
+    static constexpr bool PropagateOnSwap = true;
 
-private:
+    explicit MoveOOMAllocator(int oom, int id) noexcept
+        : OOMAllocator(oom),
+          m_id(id)
+    {
+    }
 
-    static uint32_t g_FreeCount;
-    static uint32_t g_AllocCount;
-    static uint32_t g_ReallocCount;
-    static uint32_t g_FreeBytesCount;
-    static uint32_t g_AllocBytesCount;
-    static uint32_t g_ReallocBytesCount;
+    bool operator==(const MoveOOMAllocator& other) const noexcept
+    {
+        return m_id == other.m_id;
+    }
+
+    int m_id;
 };
 
-template <typename T>
 class CountingAllocator
 {
 public:
 
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
+    static uint32_t g_FreeCount;
+    static uint32_t g_AllocCount;
+    static size_t g_FreeBytesCount;
+    static size_t g_AllocBytesCount;
 
-    using ThisType = CountingAllocator<T>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
-
-    using Impl = CountingAllocatorImpl;
-
-    ~CountingAllocator() = default;
-
-    constexpr CountingAllocator() noexcept = default;
-
-    constexpr CountingAllocator(const CountingAllocator&) noexcept = default;
-
-    template <typename U>
-    constexpr CountingAllocator(const CountingAllocator<U>&) noexcept
+    void FreeBytes(void* ptr, size_t byte_count) noexcept
     {
+        RAD_UNUSED(byte_count);
+
+        if (ptr != nullptr)
+        {
+            ++g_FreeCount;
+            g_FreeBytesCount += byte_count;
+        }
+        free(ptr);
     }
 
-    template <typename U>
-    struct Rebind
+    void* AllocBytes(size_t byte_count) noexcept
     {
-        using Other = CountingAllocator<U>;
-    };
-
-    void Free(ValueType* ptr) noexcept
-    {
-        Impl::Free(ptr);
+        ++g_AllocCount;
+        g_AllocBytesCount += byte_count;
+        return malloc(byte_count);
     }
 
-    ValueType* Alloc(SizeType count) noexcept
+    static void HandleSizeOverflow()
     {
-        return (ValueType*)Impl::Alloc((sizeof(T) * count));
-    }
-
-    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
-    {
-        return (ValueType*)Impl::Realloc(ptr, (sizeof(T) * count));
-    }
-
-    void FreeBytes(void* ptr) noexcept
-    {
-        Impl::Free(ptr);
-    }
-
-    void* AllocBytes(SizeType size) noexcept
-    {
-        return (ValueType*)Impl::Alloc(size);
-    }
-
-    void* ReallocBytes(void* ptr, SizeType size) noexcept
-    {
-        return Impl::Realloc(ptr, size);
     }
 
     uint32_t FreeCount() const noexcept
     {
-        return Impl::FreeCount();
+        return g_FreeCount;
     }
 
     uint32_t AllocCount() const noexcept
     {
-        return Impl::AllocCount();
-    }
-
-    uint32_t ReallocCount() const noexcept
-    {
-        return Impl::ReallocCount();
-    }
-
-    uint32_t FreeBytesCount() const noexcept
-    {
-        return Impl::FreeBytesCount();
-    }
-
-    uint32_t AllocBytesCount() const noexcept
-    {
-        return Impl::AllocBytesCount();
-    }
-
-    uint32_t ReallocBytesCount() const noexcept
-    {
-        return Impl::ReallocBytesCount();
+        return g_AllocCount;
     }
 
     void ResetCounts() noexcept
     {
-        Impl::ResetCounts();
+        g_AllocBytesCount = g_FreeBytesCount = g_FreeCount = g_AllocCount = 0;
     }
 
-    bool VerifyCounts() const noexcept
+    void VerifyCounts() const noexcept
     {
-        return Impl::VerifyCounts();
+        EXPECT_EQ(g_AllocCount, g_FreeCount);
+        EXPECT_EQ(g_AllocBytesCount, g_FreeBytesCount);
     }
 
-    bool VerifyCounts(uint32_t expectedAllocs,
+    void VerifyCounts(uint32_t expectedAllocs,
                       uint32_t expectedFrees) const noexcept
     {
-        return Impl::VerifyCounts(expectedAllocs, expectedFrees);
+        EXPECT_EQ(g_AllocCount, expectedAllocs);
+        EXPECT_EQ(g_FreeCount, expectedFrees);
     }
 };
 
-template <typename T>
 class StatefulCountingAllocator
 {
 public:
 
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
+    static constexpr bool IsAlwaysEqual = false;
+    static constexpr bool PropagateOnMoveAssignment = true;
+    static constexpr bool PropagateOnCopy = true;
+    static constexpr bool PropagateOnSwap = true;
 
-    using ThisType = StatefulCountingAllocator<T>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
+    bool operator==(const StatefulCountingAllocator& other) const
+    {
+        return m_state == other.m_state;
+    }
 
-    using Impl = CountingAllocatorImpl;
+    static uint32_t g_FreeCount;
+    static uint32_t g_AllocCount;
+    static size_t g_AllocBytesCount;
+    static size_t g_FreeBytesCount;
+
+    static constexpr uint32_t k_BadState = 0xdeadc0de;
 
     ~StatefulCountingAllocator()
     {
@@ -493,119 +403,77 @@ public:
     StatefulCountingAllocator(const StatefulCountingAllocator&) noexcept =
         default;
 
-    template <typename U>
-    StatefulCountingAllocator(
-        const StatefulCountingAllocator<U>& other) noexcept
-        : m_state(other.m_state)
+    void FreeBytes(void* ptr, size_t byte_count) noexcept
     {
+        RAD_UNUSED(byte_count);
+
+        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
+        if (ptr != nullptr)
+        {
+            ++g_FreeCount;
+            g_FreeBytesCount += byte_count;
+        }
+        free(ptr);
     }
 
-    template <typename U>
-    struct Rebind
-    {
-        using Other = StatefulCountingAllocator<U>;
-    };
-
-    void Free(ValueType* ptr) noexcept
+    void* AllocBytes(size_t byte_count) noexcept
     {
         EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
 
-        Impl::Free(ptr);
+        ++g_AllocCount;
+        g_AllocBytesCount += byte_count;
+        return malloc(byte_count);
     }
 
-    ValueType* Alloc(SizeType count) noexcept
+    static void HandleSizeOverflow()
     {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        return (ValueType*)Impl::Alloc((sizeof(T) * count));
-    }
-
-    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
-    {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        return (ValueType*)Impl::Realloc(ptr, (sizeof(T) * count));
-    }
-
-    void FreeBytes(void* ptr) noexcept
-    {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        Impl::Free(ptr);
-    }
-
-    void* AllocBytes(SizeType size) noexcept
-    {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        return (ValueType*)Impl::Alloc(size);
-    }
-
-    void* ReallocBytes(void* ptr, SizeType size) noexcept
-    {
-        EXPECT_NE(m_state, k_BadState) << "Allocator used after destruction";
-
-        return Impl::Realloc(ptr, size);
     }
 
     uint32_t FreeCount() const noexcept
     {
-        return Impl::FreeCount();
+        return g_FreeCount;
     }
 
     uint32_t AllocCount() const noexcept
     {
-        return Impl::AllocCount();
-    }
-
-    uint32_t ReallocCount() const noexcept
-    {
-        return Impl::ReallocCount();
-    }
-
-    uint32_t FreeBytesCount() const noexcept
-    {
-        return Impl::FreeBytesCount();
-    }
-
-    uint32_t AllocBytesCount() const noexcept
-    {
-        return Impl::AllocBytesCount();
-    }
-
-    uint32_t ReallocBytesCount() const noexcept
-    {
-        return Impl::ReallocBytesCount();
+        return g_AllocCount;
     }
 
     void ResetCounts() noexcept
     {
-        Impl::ResetCounts();
+        g_AllocBytesCount = g_FreeBytesCount = g_FreeCount = g_AllocCount = 0;
     }
 
-    bool VerifyCounts() const noexcept
+    void VerifyCounts() const noexcept
     {
-        return Impl::VerifyCounts();
+        EXPECT_EQ(g_AllocCount, g_FreeCount);
+        EXPECT_EQ(g_AllocBytesCount, g_FreeBytesCount);
     }
 
-    bool VerifyCounts(uint32_t expectedAllocs,
+    void VerifyCounts(uint32_t expectedAllocs,
                       uint32_t expectedFrees) const noexcept
     {
-        return Impl::VerifyCounts(expectedAllocs, expectedFrees);
+        EXPECT_EQ(g_AllocCount, expectedAllocs);
+        EXPECT_EQ(g_FreeCount, expectedFrees);
     }
 
     uint32_t m_state;
 };
 
-struct HeapAllocator
+struct HeapResource
 {
-    void Free(void* ptr)
+    void FreeBytes(void* ptr, size_t byte_count)
     {
-        freeCount++;
+        RAD_UNUSED(byte_count);
+
+        if (ptr != nullptr)
+        {
+            freeCount++;
+        }
         free(ptr);
     }
 
-    void* Alloc(uint32_t count)
+    void* AllocBytes(size_t byte_count)
     {
         if (forceAllocFails > 0)
         {
@@ -622,49 +490,7 @@ struct HeapAllocator
         }
 
         allocCount++;
-        return malloc(count);
-    }
-
-    void* Realloc(void* ptr, uint32_t count)
-    {
-        if (forceReallocFails > 0)
-        {
-            forceReallocFails--;
-            return nullptr;
-        }
-
-        reallocCount++;
-        return realloc(ptr, count);
-    }
-
-    void FreeBytes(void* ptr)
-    {
-        freeBytesCount++;
-        free(ptr);
-    }
-
-    void* AllocBytes(uint32_t count)
-    {
-        if (forceAllocBytesFails > 0)
-        {
-            forceAllocBytesFails--;
-            return nullptr;
-        }
-
-        allocBytesCount++;
-        return malloc(count);
-    }
-
-    void* ReallocBytes(void* ptr, uint32_t count)
-    {
-        if (forceReallocBytesFails > 0)
-        {
-            forceReallocBytesFails--;
-            return nullptr;
-        }
-
-        reallocBytesCount++;
-        return realloc(ptr, count);
+        return malloc(byte_count);
     }
 
     int32_t freeCount{ 0 };
@@ -672,85 +498,70 @@ struct HeapAllocator
     int32_t forceFutureAllocFail{ 0 };
     int32_t forceAllocFails{ 0 };
     int32_t allocCount{ 0 };
-
-    uint32_t forceReallocFails{ 0 };
-    uint32_t reallocCount{ 0 };
-
-    uint32_t freeBytesCount{ 0 };
-
-    uint32_t forceAllocBytesFails{ 0 };
-    uint32_t allocBytesCount{ 0 };
-
-    uint32_t forceReallocBytesFails{ 0 };
-    uint32_t reallocBytesCount{ 0 };
 };
 
-template <typename T, typename TBase>
-class AllocWrapper
+template <typename Res>
+class ResourceAllocator
 {
 public:
 
-    static constexpr bool NeedsFree = true;
-    static constexpr bool HasRealloc = true;
-    static constexpr bool HasAllocBytes = true;
+    static constexpr bool IsAlwaysEqual = false;
+    static constexpr bool PropagateOnMoveAssignment = true;
+    static constexpr bool PropagateOnCopy = true;
+    static constexpr bool PropagateOnSwap = true;
 
-    using ThisType = AllocWrapper<T, TBase>;
-    using ValueType = T;
-    using SizeType = uint32_t;
-    using DifferenceType = ptrdiff_t;
+    bool operator==(const ResourceAllocator& other) const noexcept
+    {
+        return m_res == other.m_res;
+    }
 
-    ~AllocWrapper() = default;
-
-    constexpr AllocWrapper(TBase& alloc) noexcept
-        : base(&alloc)
+    constexpr ResourceAllocator(Res& res) noexcept
+        : m_res(&res)
     {
     }
 
-    constexpr AllocWrapper(const AllocWrapper&) noexcept = default;
+    void FreeBytes(void* ptr, size_t byte_count) noexcept
+    {
+        m_res->FreeBytes(ptr, byte_count);
+    }
 
-    template <typename U>
-    constexpr AllocWrapper(const AllocWrapper<U, TBase>& other) noexcept
-        : base(other.base)
+    void* AllocBytes(size_t byte_count) noexcept
+    {
+        return m_res->AllocBytes(byte_count);
+    }
+
+    static void HandleSizeOverflow()
     {
     }
 
-    template <typename U>
-    struct Rebind
-    {
-        using Other = AllocWrapper<U, TBase>;
-    };
+    Res* m_res;
+};
 
-    void Free(ValueType* ptr) noexcept
+class TypedAllocator
+{
+public:
+
+    static constexpr bool IsAlwaysEqual = true;
+    static constexpr bool HasTypedAllocations = true;
+
+    template <typename T>
+    static constexpr T* Alloc(size_t count)
     {
-        base->Free(ptr);
+        if (count > UINT32_MAX / sizeof(T))
+        {
+            return nullptr;
+        }
+
+        void* raw = malloc(count * sizeof(T));
+        return static_cast<T*>(raw);
     }
 
-    ValueType* Alloc(SizeType count) noexcept
+    template <typename T>
+    static constexpr void Free(T* ptr, size_t count) noexcept
     {
-        return (ValueType*)base->Alloc(count * sizeof(T));
+        RAD_UNUSED(count);
+        free(ptr);
     }
-
-    ValueType* Realloc(ValueType* ptr, SizeType count) noexcept
-    {
-        return (ValueType*)base->Realloc(ptr, count * sizeof(T));
-    }
-
-    void FreeBytes(void* ptr) noexcept
-    {
-        base->FreeBytes(ptr);
-    }
-
-    void* AllocBytes(SizeType size) noexcept
-    {
-        return base->AllocBytes(size);
-    }
-
-    void* ReallocBytes(void* ptr, SizeType size) noexcept
-    {
-        return base->ReallocBytes(ptr, size);
-    }
-
-    TBase* base;
 };
 
 } // namespace radtest

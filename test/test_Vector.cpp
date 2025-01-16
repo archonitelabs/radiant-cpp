@@ -19,7 +19,7 @@
 #define RAD_ENABLE_NOTHROW_DTOR_ASSERTIONS 0
 #define RAD_ENABLE_NOTHROW_MOVE_ASSERTIONS 0
 
-#define RAD_DEFAULT_ALLOCATOR radtest::Allocator
+#define RAD_DEFAULT_ALLOCATOR radtest::Mallocator
 
 #include "gtest/gtest.h"
 #include "test/TestAlloc.h"
@@ -241,8 +241,8 @@ TEST_F(TestVectorIntegral, InlineDefaultConstruct)
 
 TEST_F(TestVectorIntegral, AllocatorCopyConstruct)
 {
-    radtest::HeapAllocator heap;
-    radtest::AllocWrapper<int, radtest::HeapAllocator> alloc(heap);
+    radtest::HeapResource heap;
+    radtest::ResourceAllocator<radtest::HeapResource> alloc(heap);
     rad::Vector<int, decltype(alloc)> vec(alloc);
 
     EXPECT_TRUE(vec.Empty());
@@ -251,14 +251,14 @@ TEST_F(TestVectorIntegral, AllocatorCopyConstruct)
 
     EXPECT_EQ(heap.allocCount, 0);
     EXPECT_EQ(heap.freeCount, 0);
-    EXPECT_EQ(vec.GetAllocator().base, &heap);
+    EXPECT_EQ(vec.GetAllocator().m_res, &heap);
 }
 
 TEST_F(TestVectorIntegral, AllocatorMoveConstruct)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
 
     EXPECT_TRUE(vec.Empty());
@@ -267,14 +267,14 @@ TEST_F(TestVectorIntegral, AllocatorMoveConstruct)
 
     EXPECT_EQ(heap.allocCount, 0);
     EXPECT_EQ(heap.freeCount, 0);
-    EXPECT_EQ(vec.GetAllocator().base, &heap);
+    EXPECT_EQ(vec.GetAllocator().m_res, &heap);
 }
 
 TEST_F(TestVectorIntegral, Reserve)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
 
     EXPECT_TRUE(vec.Reserve(100).IsOk());
@@ -312,9 +312,9 @@ TEST_F(TestVectorIntegral, Reserve)
 
 TEST_F(TestVectorIntegral, InlineReserve)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::InlineVector<int, 10, AllocWrap> vec(heap);
 
     EXPECT_TRUE(vec.Reserve(5).IsOk());
@@ -368,9 +368,9 @@ TEST_F(TestVectorIntegral, InlineReserve)
 
 TEST_F(TestVectorIntegral, ReserveFail)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
 
     heap.forceAllocFails = 1;
@@ -385,9 +385,9 @@ TEST_F(TestVectorIntegral, ReserveFail)
 
 TEST_F(TestVectorIntegral, InlineReserveFail)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::InlineVector<int, 10, AllocWrap> vec(heap);
 
     heap.forceAllocFails = 1;
@@ -1000,6 +1000,31 @@ TEST_F(TestVectorIntegral, Move)
     EXPECT_EQ(other.Size(), 3u);
     EXPECT_EQ(other.Front(), 1);
     EXPECT_EQ(other.Back(), 3);
+
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-move"
+#endif
+#ifdef RAD_CLANG_VERSION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
+#endif
+
+    // self move assign
+    other = std::move(other);
+    EXPECT_EQ(other.Size(), 3u);
+    EXPECT_EQ(other.Front(), 1);
+    EXPECT_EQ(other.Back(), 3);
+
+    vec = std::move(vec);
+    EXPECT_EQ(vec.Size(), 0u);
+
+#ifdef RAD_CLANG_VERSION
+#pragma clang diagnostic pop
+#endif
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
+#pragma GCC diagnostic pop
+#endif
 }
 
 TEST_F(TestVectorIntegral, Double)
@@ -1155,9 +1180,9 @@ TEST_F(TestVectorIntegral, ResizeSame)
 
 TEST_F(TestVectorIntegral, ShrinkToFitNoMemory)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
 
     EXPECT_TRUE(vec.Assign({ 1, 2, 3 }).IsOk());
@@ -1174,9 +1199,9 @@ TEST_F(TestVectorIntegral, ShrinkToFitNoMemory)
 
 TEST_F(TestVectorIntegral, InlineShrinkToFitNoMemory)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap, 1> vec(heap);
 
     EXPECT_TRUE(vec.Assign({ 1, 2, 3 }).IsOk());
@@ -1193,9 +1218,9 @@ TEST_F(TestVectorIntegral, InlineShrinkToFitNoMemory)
 
 TEST_F(TestVectorIntegral, CopyNoMemory)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
     rad::Vector<int, AllocWrap> other(heap);
 
@@ -1214,9 +1239,9 @@ TEST_F(TestVectorIntegral, CopyNoMemory)
 
 TEST_F(TestVectorIntegral, ResizeNoMemory)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
 
     heap.forceAllocFails = 1;
@@ -1234,9 +1259,9 @@ TEST_F(TestVectorIntegral, ResizeNoMemory)
 
 TEST_F(TestVectorIntegral, AssignNoMemory)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
 
     heap.forceAllocFails = 1;
@@ -1254,9 +1279,9 @@ TEST_F(TestVectorIntegral, AssignNoMemory)
 
 TEST_F(TestVectorIntegral, EmplaceBackNoMemory)
 {
-    using AllocWrap = radtest::AllocWrapper<int, radtest::HeapAllocator>;
+    using AllocWrap = radtest::ResourceAllocator<radtest::HeapResource>;
 
-    radtest::HeapAllocator heap;
+    radtest::HeapResource heap;
     rad::Vector<int, AllocWrap> vec(heap);
 
     heap.forceAllocFails = 1;
@@ -1463,9 +1488,8 @@ TYPED_TEST_P(NonTrivialStruct, Resize)
     EXPECT_EQ(g_stats.CopyAssignCount, 0);
     EXPECT_EQ(g_stats.MoveAssignCount, 0);
 
-    auto allocator =
-        radtest::OOMAllocator<TypeParam>(TypeParam::isNoThrow ? 1 : 3);
-    rad::Vector<TypeParam, radtest::OOMAllocator<TypeParam>> fail(allocator);
+    auto allocator = radtest::OOMAllocator(TypeParam::isNoThrow ? 1 : 3);
+    rad::Vector<TypeParam, radtest::OOMAllocator> fail(allocator);
     EXPECT_TRUE(fail.Resize(5, value).IsOk());
 
     EXPECT_EQ(fail.Resize(10, value), rad::Error::NoMemory);
@@ -1513,8 +1537,8 @@ TYPED_TEST_P(NonTrivialStruct, Assign)
     EXPECT_EQ(g_stats.CopyAssignCount, 0);
     EXPECT_EQ(g_stats.MoveAssignCount, 0);
 
-    rad::Vector<TypeParam, radtest::OOMAllocator<TypeParam>> fail(
-        radtest::OOMAllocator<TypeParam>(0));
+    rad::Vector<TypeParam, radtest::OOMAllocator> fail(
+        radtest::OOMAllocator(0));
     EXPECT_EQ(fail.Assign(10, value), rad::Error::NoMemory);
 }
 
@@ -1595,8 +1619,8 @@ TYPED_TEST_P(NonTrivialStruct, AssignSpan)
     EXPECT_EQ(g_stats.CopyAssignCount, 0);
     EXPECT_EQ(g_stats.MoveAssignCount, 0);
 
-    rad::Vector<TypeParam, radtest::OOMAllocator<TypeParam>> fail(
-        radtest::OOMAllocator<TypeParam>(0));
+    rad::Vector<TypeParam, radtest::OOMAllocator> fail(
+        radtest::OOMAllocator(0));
     EXPECT_EQ(fail.Assign(spanVec.ToSpan()), rad::Error::NoMemory);
 }
 
@@ -1724,12 +1748,12 @@ TYPED_TEST_P(NonTrivialStruct, Copy)
     EXPECT_EQ(g_stats.CopyAssignCount, 0);
     EXPECT_EQ(g_stats.MoveAssignCount, 0);
 
-    rad::Vector<TypeParam, radtest::OOMAllocator<TypeParam>> good(
-        radtest::OOMAllocator<TypeParam>(10));
+    rad::Vector<TypeParam, radtest::OOMAllocator> good(
+        radtest::OOMAllocator(10));
     EXPECT_TRUE(good.Assign(10, value).IsOk());
 
-    rad::Vector<TypeParam, radtest::OOMAllocator<TypeParam>> fail(
-        radtest::OOMAllocator<TypeParam>(0));
+    rad::Vector<TypeParam, radtest::OOMAllocator> fail(
+        radtest::OOMAllocator(0));
     EXPECT_EQ(good.Copy(fail), rad::Error::NoMemory);
 }
 
@@ -2373,3 +2397,255 @@ TEST_F(TestVectorStrongGuarantee, Copy)
     EXPECT_EQ(g_stats.CopyAssignCount, 0);
     EXPECT_EQ(g_stats.MoveAssignCount, 0);
 }
+
+#ifdef RAD_GCC_VERSION
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmultichar"
+#endif
+TEST(VectorTest, TroubleAllocators)
+{
+    {
+        using StickyVec = rad::Vector<int, radtest::StickyTaggedAllocator>;
+        StickyVec vec1(radtest::StickyTaggedAllocator{ 'tst1' });
+        EXPECT_TRUE(vec1.PushBack(1).IsOk());
+
+        StickyVec vec2(rad::Move(vec1));
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec2.Size(), 1u);
+
+        StickyVec vec3(radtest::StickyTaggedAllocator{ 'tst3' });
+        EXPECT_TRUE(vec2.Copy(vec3).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(vec3.Size(), 1u);
+        EXPECT_EQ(vec3.GetAllocator().m_tag, uint32_t('tst3'));
+
+        StickyVec vec3a(radtest::StickyTaggedAllocator{ 'tst4' });
+        ASSERT_TRUE(vec3a.PushBack(42).IsOk());
+        ASSERT_TRUE(vec3a.PushBack(99).IsOk());
+        EXPECT_TRUE(vec2.Copy(vec3a).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(vec3a.Size(), 1u);
+        EXPECT_EQ(vec3a.GetAllocator().m_tag, uint32_t('tst4'));
+
+        // These all static_assert, as they should
+        // vec1 = std::move(vec2);
+        // vec1.Swap(vec2);
+        // vec1.Move(vec2);
+        // vec1.Clone();
+    }
+    {
+        using StickyVecNt =
+            rad::Vector<ThrowingVecTester, radtest::StickyTaggedAllocator>;
+        StickyVecNt vec1(radtest::StickyTaggedAllocator{ 'tst1' });
+        EXPECT_TRUE(vec1.PushBack(ThrowingVecTester(1)).IsOk());
+
+        StickyVecNt vec2(rad::Move(vec1));
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec2.Size(), 1u);
+
+        StickyVecNt vec3(radtest::StickyTaggedAllocator{ 'tst3' });
+        EXPECT_TRUE(vec2.Copy(vec3).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(vec3.Size(), 1u);
+        EXPECT_EQ(vec3.GetAllocator().m_tag, uint32_t('tst3'));
+
+        StickyVecNt vec3a(radtest::StickyTaggedAllocator{ 'tst4' });
+        ASSERT_TRUE(vec3a.PushBack(ThrowingVecTester(42)).IsOk());
+        ASSERT_TRUE(vec3a.PushBack(ThrowingVecTester(99)).IsOk());
+        EXPECT_TRUE(vec2.Copy(vec3a).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(vec3a.Size(), 1u);
+        EXPECT_EQ(vec3a.GetAllocator().m_tag, uint32_t('tst4'));
+
+        // These all static_assert, as they should
+        // vec1 = std::move(vec2);
+        // vec1.Swap(vec2);
+        // vec1.Move(vec2);
+        // vec1.Clone();
+    }
+    {
+        using StickyDefaultVec =
+            rad::Vector<int, radtest::StickyDefaultTaggedAllocator>;
+        StickyDefaultVec vec1(radtest::StickyDefaultTaggedAllocator{ 'tst1' });
+        EXPECT_TRUE(vec1.PushBack(1).IsOk());
+
+        StickyDefaultVec vec2(std::move(vec1));
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec1.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('tst1'));
+
+        StickyDefaultVec vec3(radtest::StickyDefaultTaggedAllocator{ 'tst3' });
+        EXPECT_TRUE(vec2.Copy(vec3).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(vec3.Size(), 1u);
+        EXPECT_EQ(vec3.GetAllocator().m_tag, uint32_t('tst3'));
+
+        StickyDefaultVec vec3a(radtest::StickyDefaultTaggedAllocator{ 'tst4' });
+        ASSERT_TRUE(vec3a.PushBack(42).IsOk());
+        ASSERT_TRUE(vec3a.PushBack(99).IsOk());
+        EXPECT_TRUE(vec2.Copy(vec3a).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('tst1'));
+        EXPECT_EQ(vec3a.Size(), 1u);
+        EXPECT_EQ(vec3a.GetAllocator().m_tag, uint32_t('tst4'));
+
+        auto expected_vec4 = vec2.Clone();
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(expected_vec4.Ok().Size(), 1u);
+        EXPECT_EQ(expected_vec4.Ok().GetAllocator().m_tag, uint32_t(1234));
+
+        // These all static_assert, as they should
+        // vec1 = std::move(vec2);
+        // vec1.Swap(vec2);
+        // vec1.Move(vec2);
+    }
+
+    {
+        using MovingVec = rad::Vector<int, radtest::MovingTaggedAllocator>;
+        MovingVec vec1(radtest::MovingTaggedAllocator{ 'abcd' });
+        EXPECT_TRUE(vec1.PushBack(1).IsOk());
+
+        MovingVec vec2(rad::Move(vec1));
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec2.Size(), 1u);
+
+        MovingVec vec3(radtest::MovingTaggedAllocator{ 'tst3' });
+        EXPECT_TRUE(vec2.Copy(vec3).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec3.Size(), 1u);
+        EXPECT_EQ(vec3.GetAllocator().m_tag, uint32_t('abcd'));
+
+        MovingVec vec3a(radtest::MovingTaggedAllocator{ 'tst4' });
+        ASSERT_TRUE(vec3a.PushBack(42).IsOk());
+        ASSERT_TRUE(vec3a.PushBack(99).IsOk());
+        EXPECT_TRUE(vec2.Copy(vec3a).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec3a.Size(), 1u);
+        EXPECT_EQ(vec3a.GetAllocator().m_tag, uint32_t('abcd'));
+
+        MovingVec vec4(radtest::MovingTaggedAllocator{ 'wxyz' });
+        EXPECT_TRUE(vec1.PushBack(99).IsOk());
+        vec1.Swap(vec4);
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec4.Size(), 1u);
+        EXPECT_EQ(vec1.GetAllocator().m_tag, uint32_t('wxyz'));
+        EXPECT_EQ(vec4.GetAllocator().m_tag, uint32_t('abcd'));
+
+        vec1 = rad::Move(vec4);
+        EXPECT_TRUE(vec4.Empty());
+        EXPECT_EQ(vec1.Size(), 1u);
+        EXPECT_EQ(vec1.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec4.GetAllocator().m_tag, uint32_t('abcd'));
+
+        MovingVec vec5(radtest::MovingTaggedAllocator{ 'crwd' });
+        vec1.Move(vec5);
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec5.Size(), 1u);
+        EXPECT_EQ(vec1.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec5.GetAllocator().m_tag, uint32_t('abcd'));
+    }
+    {
+        using MovingVecNt =
+            rad::Vector<ThrowingVecTester, radtest::MovingTaggedAllocator>;
+        MovingVecNt vec1(radtest::MovingTaggedAllocator{ 'abcd' });
+        EXPECT_TRUE(vec1.PushBack(ThrowingVecTester(1)).IsOk());
+
+        MovingVecNt vec2(rad::Move(vec1));
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec2.Size(), 1u);
+
+        MovingVecNt vec3(radtest::MovingTaggedAllocator{ 'tst3' });
+        EXPECT_TRUE(vec2.Copy(vec3).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec3.Size(), 1u);
+        EXPECT_EQ(vec3.GetAllocator().m_tag, uint32_t('abcd'));
+
+        MovingVecNt vec3a(radtest::MovingTaggedAllocator{ 'tst4' });
+        ASSERT_TRUE(vec3a.PushBack(ThrowingVecTester(42)).IsOk());
+        ASSERT_TRUE(vec3a.PushBack(ThrowingVecTester(99)).IsOk());
+        EXPECT_TRUE(vec2.Copy(vec3a).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec2.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec3a.Size(), 1u);
+        EXPECT_EQ(vec3a.GetAllocator().m_tag, uint32_t('abcd'));
+
+        MovingVecNt vec4(radtest::MovingTaggedAllocator{ 'wxyz' });
+        EXPECT_TRUE(vec1.PushBack(ThrowingVecTester(99)).IsOk());
+        vec1.Swap(vec4);
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec4.Size(), 1u);
+        EXPECT_EQ(vec1.GetAllocator().m_tag, uint32_t('wxyz'));
+        EXPECT_EQ(vec4.GetAllocator().m_tag, uint32_t('abcd'));
+
+        vec1 = rad::Move(vec4);
+        EXPECT_TRUE(vec4.Empty());
+        EXPECT_EQ(vec1.Size(), 1u);
+        EXPECT_EQ(vec1.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec4.GetAllocator().m_tag, uint32_t('abcd'));
+
+        MovingVecNt vec5(radtest::MovingTaggedAllocator{ 'crwd' });
+        vec1.Move(vec5);
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec5.Size(), 1u);
+        EXPECT_EQ(vec1.GetAllocator().m_tag, uint32_t('abcd'));
+        EXPECT_EQ(vec5.GetAllocator().m_tag, uint32_t('abcd'));
+    }
+
+    {
+        using TypedVec = rad::Vector<int, radtest::TypedAllocator>;
+        TypedVec vec1;
+        EXPECT_TRUE(vec1.PushBack(1).IsOk());
+
+        TypedVec vec2(rad::Move(vec1));
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec2.Size(), 1u);
+
+        TypedVec vec3;
+        EXPECT_TRUE(vec2.Copy(vec3).IsOk());
+        EXPECT_EQ(vec2.Size(), 1u);
+        EXPECT_EQ(vec3.Size(), 1u);
+
+        vec1 = rad::Move(vec2);
+        EXPECT_TRUE(vec2.Empty());
+        EXPECT_EQ(vec1.Size(), 1u);
+
+        vec1.Swap(vec2);
+        EXPECT_TRUE(vec1.Empty());
+        EXPECT_EQ(vec2.Size(), 1u);
+
+        TypedVec vec4;
+        vec2.Move(vec4);
+        EXPECT_TRUE(vec2.Empty());
+        EXPECT_EQ(vec4.Size(), 1u);
+    }
+
+    {
+        int value = 42;
+        rad::Vector<int, radtest::MoveOOMAllocator> good(
+            radtest::MoveOOMAllocator(1, 1234)); // you get one good allocation
+        EXPECT_TRUE(good.Assign(10, value).IsOk());
+
+        rad::Vector<int, radtest::MoveOOMAllocator> fail(
+            radtest::MoveOOMAllocator(99, 5678)); // not ever used
+        EXPECT_EQ(good.Copy(fail), rad::Error::NoMemory);
+        EXPECT_EQ(fail.GetAllocator().m_id, 5678);
+
+        rad::Vector<int, radtest::MoveOOMAllocator> pass(
+            radtest::MoveOOMAllocator(99, 5678));
+        EXPECT_TRUE(pass.Assign(10, value).IsOk());
+        EXPECT_TRUE(pass.Copy(good).IsOk());
+        EXPECT_EQ(good.GetAllocator().m_id, 5678);
+    }
+}
+#ifdef RAD_GCC_VERSION
+#pragma GCC diagnostic pop
+#endif

@@ -72,12 +72,12 @@
 
 #if defined(__clang__) && __clang__
 #define RAD_CLANG_VERSION                                                      \
-    (__clang_major__ * 10000 + __clang_minor__ + 100 + __clang_patchlevel__)
+    (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #endif
 
 #if !defined(__clang__) && defined(__GNUC__) && __GNUC__
 #define RAD_GCC_VERSION                                                        \
-    (__GNUC__ * 10000 + __GNUC__MINOR__ + 100 + __GNUC_PATCHLEVEL__)
+    (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #endif
 
 #if defined(_MSC_VER) && _MSC_VER
@@ -294,25 +294,6 @@ extern "C" __declspec(noreturn) void __fastfail(unsigned int code);
 #else
 #define RAD_S_ASSERT_NOTHROW_MOVE(x)   RAD_S_ASSERT(true)
 #define RAD_S_ASSERT_NOTHROW_MOVE_T(x) RAD_S_ASSERT(true)
-#endif
-
-//
-// Enables assertions that allocators meet the Radiant allocator concept
-// requirements.
-//
-// See: rad::AllocatorRequires
-//
-#ifndef RAD_ENABLE_ALLOCATOR_REQUIRES_ASSERTIONS
-#define RAD_ENABLE_ALLOCATOR_REQUIRES_ASSERTIONS 1
-#endif
-#if RAD_ENABLE_ALLOCATOR_REQUIRES_ASSERTIONS
-#define RAD_S_ASSERT_ALLOCATOR_REQUIRES(x)                                     \
-    RAD_S_ASSERTMSG(x, "allocator requirements not met")
-#define RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(x)                                   \
-    RAD_S_ASSERT_ALLOCATOR_REQUIRES(::rad::AllocatorRequires<x>)
-#else
-#define RAD_S_ASSERT_ALLOCATOR_REQUIRES(x)   RAD_S_ASSERT(true)
-#define RAD_S_ASSERT_ALLOCATOR_REQUIRES_T(x) RAD_S_ASSERT(true)
 #endif
 
 #define RAD_NOT_COPYABLE(x)                                                    \
