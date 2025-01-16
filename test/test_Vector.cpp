@@ -1001,7 +1001,7 @@ TEST_F(TestVectorIntegral, Move)
     EXPECT_EQ(other.Front(), 1);
     EXPECT_EQ(other.Back(), 3);
 
-#ifdef RAD_GCC_VERSION
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wself-move"
 #endif
@@ -1022,7 +1022,7 @@ TEST_F(TestVectorIntegral, Move)
 #ifdef RAD_CLANG_VERSION
 #pragma clang diagnostic pop
 #endif
-#ifdef RAD_GCC_VERSION
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
 #pragma GCC diagnostic pop
 #endif
 }

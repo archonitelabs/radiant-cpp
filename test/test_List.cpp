@@ -449,7 +449,7 @@ TEST(ListTest, MoveAssign)
         ListEqual(one, { 101 });
         ListEqual(move_from_one, { 1, 201 });
     }
-#ifdef RAD_GCC_VERSION
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wself-move"
 #endif
@@ -472,7 +472,7 @@ TEST(ListTest, MoveAssign)
 #ifdef RAD_CLANG_VERSION
 #pragma clang diagnostic pop
 #endif
-#ifdef RAD_GCC_VERSION
+#if defined(RAD_GCC_VERSION) && RAD_GCC_VERSION >= 130000
 #pragma GCC diagnostic pop
 #endif
 }

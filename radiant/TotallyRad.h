@@ -72,12 +72,12 @@
 
 #if defined(__clang__) && __clang__
 #define RAD_CLANG_VERSION                                                      \
-    (__clang_major__ * 10000 + __clang_minor__ + 100 + __clang_patchlevel__)
+    (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #endif
 
 #if !defined(__clang__) && defined(__GNUC__) && __GNUC__
 #define RAD_GCC_VERSION                                                        \
-    (__GNUC__ * 10000 + __GNUC__MINOR__ + 100 + __GNUC_PATCHLEVEL__)
+    (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #endif
 
 #if defined(_MSC_VER) && _MSC_VER
