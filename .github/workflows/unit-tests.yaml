@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -31,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -44,7 +44,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -57,7 +57,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.9.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
@@ -65,20 +65,18 @@ jobs:
       - name: Build and Run Unit Tests
         run: bazel test --test_output=all //...
         shell: cmd
-  # Disabled until the following are resolved:
-  # https://github.com/bazel-contrib/setup-bazel/issues/25
-  # https://github.com/bazelbuild/bazelisk/issues/572
-  #Windows-ARM64:
-  #  runs-on: archonite-windows-arm64
-  #  steps:
-  #    - name: Checkout
-  #      uses: actions/checkout@v4
-  #    - name: Setup Bazel
-  #      uses: bazel-contrib/setup-bazel@0.8.5
-  #      with:
-  #        bazelisk-cache: true
-  #        disk-cache: ${{ github.workflow }}
-  #        repository-cache: true
-  #    - name: Build and Run Unit Tests
-  #      run: bazel test --test_output=all //...
-  #      shell: cmd
+  Windows-ARM64:
+    runs-on: archonite-windows-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@dac93a5ea3e0f98fc0d5b3a4f7700f579b96612d
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+          bazelisk-version: 1.x
+      - name: Build and Run Unit Tests
+        run: dir C:\a\_tool\bazelisk\1.x\arm64 && C:\a\_tool\bazelisk\1.x\arm64\bazel.exe test -s --toolchain_resolution_debug=.* //...
+        shell: cmd
